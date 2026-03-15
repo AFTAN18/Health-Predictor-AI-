@@ -1,0 +1,286 @@
+You are a senior full-stack AI engineer. Build a complete MVP production-ready application for an AI Early Disease Prediction System.
+
+The system predicts diseases like Diabetes and Heart Disease using trained machine learning models.
+
+The ML models (Random Forest, SVM, Naive Bayes, Decision Tree) are already trained and saved as .pkl files.
+
+The backend must load the best model and scaler to perform predictions.
+
+TECH STACK
+
+Frontend:
+
+Next.js 14 (App Router)
+
+TypeScript
+
+TailwindCSS
+
+Axios
+
+Chart.js (for analytics)
+
+Backend:
+
+FastAPI
+
+Python
+
+scikit-learn
+
+joblib
+
+pydantic
+
+Database:
+
+Supabase (PostgreSQL)
+
+Authentication:
+
+Supabase Auth (email/password)
+
+Deployment:
+
+Frontend → Vercel
+
+Backend → Render / Railway
+
+Database → Supabase
+
+PROJECT STRUCTURE
+
+Create the following folder structure:
+
+early-disease-prediction-system
+
+frontend
+app
+login
+signup
+dashboard
+predict
+components
+PredictionForm.tsx
+ResultCard.tsx
+Navbar.tsx
+utils
+supabaseClient.ts
+
+backend
+main.py
+predictor.py
+schemas.py
+database.py
+
+ml
+models
+best_model.pkl
+scaler.pkl
+
+FEATURES (MVP)
+
+User Features
+
+User Signup
+
+User Login
+
+Input health parameters
+
+AI prediction
+
+Risk probability score
+
+Prediction history
+
+Dashboard analytics
+
+INPUT FEATURES
+
+The model expects the following features:
+
+pregnancies
+glucose
+blood_pressure
+skin_thickness
+insulin
+BMI
+diabetes_pedigree
+age
+
+These values come from the frontend form.
+
+BACKEND REQUIREMENTS
+
+Use FastAPI.
+
+Create endpoint:
+
+POST /predict
+
+Input schema:
+
+{
+pregnancies: number
+glucose: number
+blood_pressure: number
+skin_thickness: number
+insulin: number
+BMI: number
+diabetes_pedigree: number
+age: number
+}
+
+Load model:
+
+model = joblib.load("ml/models/best_model.pkl")
+scaler = joblib.load("ml/models/scaler.pkl")
+
+Process:
+
+Convert input to numpy array
+
+Scale using scaler
+
+Predict using model
+
+Return probability and prediction
+
+Return response:
+
+{
+prediction: 0 or 1
+risk_probability: float
+}
+
+Add CORS middleware.
+
+DATABASE (SUPABASE)
+
+Create table:
+
+predictions
+
+columns
+
+id
+user_id
+age
+glucose
+blood_pressure
+BMI
+prediction
+probability
+created_at
+
+Store every prediction.
+
+FRONTEND REQUIREMENTS
+
+Pages:
+
+/login
+/signup
+/dashboard
+/predict
+
+Prediction form fields:
+
+Age
+Glucose
+Blood Pressure
+BMI
+Pregnancies
+
+On submit:
+
+POST request to backend:
+
+http://localhost:8000/predict
+
+Show result:
+
+Prediction Result
+Risk Probability
+
+DASHBOARD
+
+Show:
+
+Total predictions
+
+Risk distribution chart
+
+Recent predictions
+
+Use Chart.js.
+
+UI REQUIREMENTS
+
+Modern health-tech UI.
+
+Design:
+
+Clean cards
+Smooth transitions
+Minimal medical dashboard
+Responsive mobile design
+
+Color theme:
+
+Blue
+White
+Light grey
+
+SECURITY
+
+Use environment variables:
+
+SUPABASE_URL
+SUPABASE_KEY
+BACKEND_API_URL
+
+Never hardcode secrets.
+
+DEPLOYMENT
+
+Frontend deploy to Vercel.
+
+Backend deploy to Render.
+
+Environment variables must be configurable.
+
+OUTPUT REQUIRED
+
+Generate:
+
+Complete folder structure
+
+All backend files
+
+All frontend files
+
+Supabase integration
+
+Prediction API
+
+Example request
+
+Example response
+
+Setup instructions
+
+Deployment steps
+
+Ensure the project runs with:
+
+Backend:
+
+uvicorn main --reload
+
+Frontend:
+
+npm run dev
+
+The result should be a working MVP AI health prediction web app that can be used in production.
