@@ -2,12 +2,15 @@ import os
 from typing import Any
 
 from dotenv import load_dotenv
-from fastapi import FastAPI, Header, HTTPException, Query, status
+from fastapi import FastAPI, Header, HTTPException, Query, Request, status
+from fastapi.exceptions import RequestValidationError
+from fastapi.responses import JSONResponse
 from fastapi.middleware.cors import CORSMiddleware
 
 from database import fetch_recent_predictions, save_prediction, supabase, verify_user_token
 from predictor import predictor
 from schemas import PredictionHistoryItem, PredictionRequest, PredictionResponse
+from validation import validate_prediction_input
 
 load_dotenv()
 
@@ -23,6 +26,18 @@ app.add_middleware(
     allow_methods=["*"],
     allow_headers=["*"],
 )
+
+
+@app.exception_handler(RequestValidationError)
+async def request_validation_exception_handler(_: Request, exc: RequestValidationError) -> JSONResponse:
+    messages: list[str] = []
+    for error in exc.errors():
+        location = ".".join(str(item) for item in error.get("loc", []) if item != "body")
+        text = str(error.get("msg", "Invalid request payload."))
+        messages.append(f"{location}: {text}" if location else text)
+
+    detail = "; ".join(messages) if messages else "Invalid request payload."
+    return JSONResponse(status_code=status.HTTP_422_UNPROCESSABLE_ENTITY, content={"detail": detail})
 
 
 def get_optional_user_id(authorization: str | None) -> str | None:
@@ -60,6 +75,11 @@ def predict_disease(
     request: PredictionRequest,
     authorization: str | None = Header(default=None),
 ) -> PredictionResponse:
+    try:
+        validate_prediction_input(request)
+    except ValueError as exc:
+        raise HTTPException(status_code=status.HTTP_422_UNPROCESSABLE_ENTITY, detail=str(exc)) from exc
+
     result = predictor.predict(request)
     user_id = get_optional_user_id(authorization)
 

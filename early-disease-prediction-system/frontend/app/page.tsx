@@ -44,14 +44,13 @@ export default function Home() {
               <p className="text-xs font-semibold uppercase tracking-[0.2em] text-slate-500">MVP Features</p>
               <ul className="mt-4 space-y-3 text-sm text-slate-700">
                 <li className="rounded-lg bg-slate-50 px-3 py-2">Instant guest prediction flow (no login required)</li>
-                <li className="rounded-lg bg-slate-50 px-3 py-2">FastAPI prediction API with model + scaler</li>
-                <li className="rounded-lg bg-slate-50 px-3 py-2">Current and future risk probability scoring</li>
+                <li className="rounded-lg bg-slate-50 px-3 py-2">Strict medical-range validation and anomaly checks</li>
+                <li className="rounded-lg bg-slate-50 px-3 py-2">Ensemble-validated prediction confidence across ML models</li>
                 <li className="rounded-lg bg-slate-50 px-3 py-2">Dashboard trends for future disease risk</li>
               </ul>
             </div>
             <div className="rounded-xl bg-brand-50 p-4 text-sm text-brand-700">
-              This app supports deployment on Vercel (frontend), Render or Railway (backend), and Supabase
-              (database/auth).
+              This tool provides risk estimation only and is not a medical diagnosis. Always consult a healthcare professional.
             </div>
           </div>
         </section>

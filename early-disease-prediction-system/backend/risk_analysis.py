@@ -2,7 +2,7 @@ from __future__ import annotations
 
 from typing import Sequence
 
-from schemas import PredictionRequest, RiskLevel
+from schemas import ConfidenceLevel, PredictionRequest, RiskLevel
 
 
 def clamp(value: float, lower: float, upper: float) -> float:
@@ -27,21 +27,30 @@ def classify_risk_from_score(score: float) -> RiskLevel:
     return "High"
 
 
-def get_risk_growth_factors(data: PredictionRequest) -> tuple[float, float, float]:
-    age_factor = clamp(data.age / 100.0, 0.0, 1.0)
-    bmi_factor = clamp(data.BMI / 50.0, 0.0, 1.0)
-    glucose_factor = clamp(data.glucose / 200.0, 0.0, 1.0)
-    return age_factor, bmi_factor, glucose_factor
+def estimate_future_probability(probability: float, risk_score: float) -> float:
+    return clamp(probability + (risk_score * 0.01), 0.0, 1.0)
 
 
-def estimate_future_probability(base_probability: float, data: PredictionRequest) -> float:
-    age_factor, bmi_factor, glucose_factor = get_risk_growth_factors(data)
-    return clamp(base_probability + (age_factor + bmi_factor + glucose_factor) * 0.05, 0.0, 1.0)
+def classify_confidence(probability: float, ensemble_agreement: int, total_models: int) -> ConfidenceLevel:
+    if probability > 0.8:
+        base_confidence: ConfidenceLevel = "High"
+    elif probability > 0.6:
+        base_confidence = "Medium"
+    else:
+        base_confidence = "Low"
+
+    if ensemble_agreement >= min(3, total_models):
+        if base_confidence == "Low":
+            return "Medium"
+        if base_confidence == "Medium":
+            return "High"
+    return base_confidence
 
 
-def estimate_future_risk_score(current_risk_score: float, data: PredictionRequest) -> float:
-    age_factor, bmi_factor, glucose_factor = get_risk_growth_factors(data)
-    return current_risk_score + (age_factor + bmi_factor + glucose_factor) * 10.0
+def uncertainty_message(probability: float) -> str | None:
+    if 0.45 <= probability <= 0.55:
+        return "Prediction uncertain. Medical testing recommended."
+    return None
 
 
 def get_key_risk_factors(data: PredictionRequest, top_k: int = 3) -> list[str]:
@@ -60,8 +69,14 @@ def generate_health_insights(data: PredictionRequest, current_risk: RiskLevel, f
 
     if data.glucose >= 140:
         insights.append("Elevated glucose indicates increased metabolic risk.")
+    elif data.glucose < 70:
+        insights.append("Low glucose level detected. Recheck values to ensure fasting/sample context is correct.")
+
     if data.BMI >= 30:
         insights.append("Higher BMI may raise diabetes and cardiovascular risk over time.")
+    elif data.BMI < 18.5:
+        insights.append("Lower BMI can indicate nutritional risk; review with a clinician if persistent.")
+
     if data.cholesterol >= 200:
         insights.append("Cholesterol is above optimal range and may increase heart disease risk.")
     if data.blood_pressure >= 130:

@@ -13,13 +13,29 @@ export interface PredictionPayload {
 export interface PredictionResult {
   current_risk: "Low" | "Medium" | "High";
   future_risk: "Low" | "Medium" | "High";
+  confidence: "Low" | "Medium" | "High";
   probability: number;
   future_probability: number;
   diabetes_probability: number;
   heart_probability: number;
   risk_score: number;
+  prediction: 0 | 1;
+  ensemble_agreement: number;
+  ensemble_total_models: number;
+  uncertainty_message: string | null;
   key_risk_factors: string[];
+  feature_importance: Array<{
+    feature: string;
+    contribution: number;
+    model_importance: number;
+  }>;
+  ensemble_votes: Array<{
+    model_name: string;
+    prediction: 0 | 1;
+    probability: number;
+  }>;
   health_insights: string[];
+  disclaimer: string;
 }
 
 export interface PredictionRecord {

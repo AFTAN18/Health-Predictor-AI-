@@ -33,11 +33,16 @@ early-disease-prediction-system/
     main.py
     predictor.py
     schemas.py
+    validation.py
     risk_analysis.py
     database.py
   ml/
     models/
       best_model.pkl
+      random_forest.pkl
+      svm.pkl
+      naive_bayes.pkl
+      decision_tree.pkl
       scaler.pkl
   supabase/
     schema.sql
@@ -47,11 +52,17 @@ early-disease-prediction-system/
 - Real-time prediction via `/predict`
 - Future risk estimation (5-year projection)
 - Current and future risk classifications (Low/Medium/High)
+- Strict backend input validation and logical consistency checks
+- Outlier/anomaly rejection safeguards
+- Ensemble agreement validation (Random Forest, SVM, Naive Bayes, Decision Tree)
+- Confidence scoring based on probability + model agreement
+- Explainable AI output using feature-importance driven factors
 - Probability output:
   - Overall probability
   - Future probability
   - Diabetes probability
   - Heart disease probability
+- Confidence level and uncertainty message when prediction is borderline
 - Key risk factors and health insights
 - Prediction history in Supabase
 - Dashboard charts:
@@ -86,20 +97,35 @@ early-disease-prediction-system/
 ### Response
 ```json
 {
-  "current_risk": "Medium",
+  "current_risk": "High",
   "future_risk": "High",
-  "probability": 0.72,
-  "future_probability": 0.81,
-  "diabetes_probability": 0.68,
-  "heart_probability": 0.72,
-  "risk_score": 72.35,
-  "key_risk_factors": ["Glucose", "BMI", "Age"],
+  "confidence": "High",
+  "probability": 0.88,
+  "future_probability": 1.0,
+  "diabetes_probability": 0.48,
+  "heart_probability": 0.88,
+  "risk_score": 88.08,
+  "prediction": 1,
+  "ensemble_agreement": 3,
+  "ensemble_total_models": 4,
+  "uncertainty_message": null,
+  "key_risk_factors": ["Glucose", "Cholesterol", "Blood Pressure"],
+  "feature_importance": [
+    { "feature": "Age", "contribution": 0.093, "model_importance": 0.127 },
+    { "feature": "Glucose", "contribution": 0.084, "model_importance": 0.291 }
+  ],
+  "ensemble_votes": [
+    { "model_name": "Random Forest", "prediction": 0, "probability": 0.48 },
+    { "model_name": "SVM", "prediction": 0, "probability": 0.49 },
+    { "model_name": "Naive Bayes", "prediction": 0, "probability": 0.21 },
+    { "model_name": "Decision Tree", "prediction": 1, "probability": 0.56 }
+  ],
   "health_insights": [
-    "Elevated glucose indicates increased metabolic risk.",
-    "Higher BMI may raise diabetes and cardiovascular risk over time.",
-    "Current overall risk classification is Medium.",
+    "Cholesterol is above optimal range and may increase heart disease risk.",
+    "Current overall risk classification is High.",
     "Projected 5-year risk classification is High."
-  ]
+  ],
+  "disclaimer": "This tool provides risk estimation only and is not a medical diagnosis. Please consult a healthcare professional."
 }
 ```
 
@@ -121,7 +147,19 @@ curl -X POST "http://localhost:8000/predict" \
 - Score `> 70` => High
 
 ### Future Probability
-`future_probability = probability + (age_factor + bmi_factor + glucose_factor) * 0.05`
+`future_probability = probability + risk_score * 0.01` (clamped to 0-1)
+
+## Input Validation Safeguards
+- Age: `0-120`
+- Glucose: `50-300`
+- Blood pressure: `60-200`
+- BMI: `10-60`
+- Pregnancies: `0-20`
+- Insulin: `0-900`
+- Skin thickness: `0-100`
+- Cholesterol: `100-400`
+- Logical checks reject impossible combinations (for example, age `< 10` with pregnancies `> 0`).
+- Z-score anomaly detection rejects severe abnormal patterns before prediction.
 
 ## Supabase Table
 

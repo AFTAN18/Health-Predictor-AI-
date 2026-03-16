@@ -51,6 +51,9 @@ export default function PredictPage() {
             Submit clinical features to receive a model-driven disease risk probability.
           </p>
         </div>
+        <div className="mb-5 rounded-xl border border-blue-200 bg-blue-50 px-4 py-3 text-sm text-blue-800">
+          This tool provides risk estimation only and is not a medical diagnosis. Please consult a healthcare professional.
+        </div>
 
         {error && <div className="mb-4 rounded-lg bg-red-50 px-4 py-3 text-sm text-red-700">{error}</div>}
 
