@@ -18,7 +18,8 @@ export default function PredictionForm({ onSubmit, isLoading }: PredictionFormPr
     insulin: 79,
     BMI: 25.0,
     diabetes_pedigree: 0.5,
-    age: 30
+    age: 30,
+    cholesterol: 180,
   });
 
   const handleChange = (event: React.ChangeEvent<HTMLInputElement>) => {
@@ -51,7 +52,7 @@ export default function PredictionForm({ onSubmit, isLoading }: PredictionFormPr
     <form onSubmit={handleSubmit} className="surface-card flex h-full flex-col justify-between p-8">
       <div>
         <h2 className="mb-2 text-2xl font-bold text-slate-900">Health Parameters</h2>
-        <p className="mb-6 text-sm text-slate-500">Fill all model features for accurate diabetes risk prediction.</p>
+        <p className="mb-6 text-sm text-slate-500">Fill core health parameters for current and future risk estimation.</p>
 
         <div className="grid grid-cols-1 gap-5 md:grid-cols-2">
           {fields.map((field) => (
@@ -69,6 +70,19 @@ export default function PredictionForm({ onSubmit, isLoading }: PredictionFormPr
               />
             </div>
           ))}
+          <div className="flex flex-col">
+            <label className="mb-2 text-sm font-medium text-slate-700">Cholesterol</label>
+            <input
+              type="number"
+              name="cholesterol"
+              step="1"
+              min="0"
+              value={formData.cholesterol}
+              onChange={handleChange}
+              className="rounded-xl border border-slate-200 bg-slate-50 px-4 py-3 text-slate-900 outline-none transition-all focus:border-brand-300 focus:bg-white focus:ring-2 focus:ring-brand-200"
+              required
+            />
+          </div>
         </div>
       </div>
 

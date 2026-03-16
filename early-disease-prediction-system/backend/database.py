@@ -53,9 +53,11 @@ def save_prediction(
         "age": request_data.age,
         "glucose": request_data.glucose,
         "blood_pressure": request_data.blood_pressure,
+        "cholesterol": request_data.cholesterol,
         "BMI": request_data.BMI,
-        "prediction": result.prediction,
-        "probability": result.risk_probability,
+        "prediction": 1 if result.probability >= 0.5 else 0,
+        "probability": result.probability,
+        "future_probability": result.future_probability,
         "created_at": datetime.now(timezone.utc).isoformat(),
     }
     return supabase.table("predictions").insert(payload).execute()

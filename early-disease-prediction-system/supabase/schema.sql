@@ -8,11 +8,16 @@ create table if not exists public.predictions (
   age numeric not null,
   glucose numeric not null,
   blood_pressure numeric not null,
+  cholesterol numeric not null default 0,
   "BMI" numeric not null,
   prediction int not null check (prediction in (0, 1)),
   probability numeric not null check (probability >= 0 and probability <= 1),
+  future_probability numeric not null default 0 check (future_probability >= 0 and future_probability <= 1),
   created_at timestamptz not null default timezone('utc', now())
 );
+
+alter table public.predictions add column if not exists cholesterol numeric not null default 0;
+alter table public.predictions add column if not exists future_probability numeric not null default 0;
 
 create index if not exists idx_predictions_user_created_at on public.predictions (user_id, created_at desc);
 

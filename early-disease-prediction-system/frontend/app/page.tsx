@@ -14,8 +14,8 @@ export default function Home() {
             </div>
 
             <h1 className="mt-6 text-4xl font-extrabold leading-tight text-slate-900 sm:text-5xl lg:text-6xl">
-              Predict Diabetes Risk Early,
-              <span className="block text-brand-700">Take Action Faster</span>
+              Predict Real-Time Disease Risk,
+              <span className="block text-brand-700">See 5-Year Forecasts Instantly</span>
             </h1>
 
             <p className="mt-6 max-w-2xl text-lg text-slate-600">
@@ -51,8 +51,8 @@ export default function Home() {
               <ul className="mt-4 space-y-3 text-sm text-slate-700">
                 <li className="rounded-lg bg-slate-50 px-3 py-2">Secure signup/login with Supabase Auth</li>
                 <li className="rounded-lg bg-slate-50 px-3 py-2">FastAPI prediction API with model + scaler</li>
-                <li className="rounded-lg bg-slate-50 px-3 py-2">Risk probability score and history tracking</li>
-                <li className="rounded-lg bg-slate-50 px-3 py-2">Analytics dashboard built using Chart.js</li>
+                <li className="rounded-lg bg-slate-50 px-3 py-2">Current and future risk probability scoring</li>
+                <li className="rounded-lg bg-slate-50 px-3 py-2">Dashboard trends for future disease risk</li>
               </ul>
             </div>
             <div className="rounded-xl bg-brand-50 p-4 text-sm text-brand-700">

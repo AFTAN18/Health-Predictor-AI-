@@ -6,21 +6,19 @@ import React, { useState } from "react";
 import AuthGuard from "@/components/AuthGuard";
 import Navbar from "@/components/Navbar";
 import PredictionForm from "@/components/PredictionForm";
-import ResultCard from "@/components/ResultCard";
+import PredictionResultCard from "@/components/PredictionResult";
 import { backendApiUrl } from "@/utils/config";
 import { isSupabaseConfigured, supabase } from "@/utils/supabaseClient";
-import { PredictionPayload, PredictionResult } from "@/utils/types";
+import { PredictionPayload, PredictionResult as PredictionResultType } from "@/utils/types";
 
 export default function PredictPage() {
-  const [prediction, setPrediction] = useState<number | null>(null);
-  const [probability, setProbability] = useState<number | null>(null);
+  const [result, setResult] = useState<PredictionResultType | null>(null);
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
   const handlePredict = async (data: PredictionPayload) => {
     setIsLoading(true);
-    setPrediction(null);
-    setProbability(null);
+    setResult(null);
     setError(null);
 
     try {
@@ -35,15 +33,14 @@ export default function PredictPage() {
         throw new Error("Your session expired. Please login again.");
       }
 
-      const response = await axios.post<PredictionResult>(`${backendApiUrl}/predict`, data, {
+      const response = await axios.post<PredictionResultType>(`${backendApiUrl}/predict`, data, {
         headers: {
           Authorization: `Bearer ${accessToken}`,
           "Content-Type": "application/json",
         },
       });
 
-      setPrediction(response.data.prediction);
-      setProbability(response.data.risk_probability);
+      setResult(response.data);
     } catch (err: unknown) {
       if (axios.isAxiosError(err)) {
         const detail = (err.response?.data as { detail?: string } | undefined)?.detail;
@@ -77,7 +74,7 @@ export default function PredictPage() {
               <PredictionForm onSubmit={handlePredict} isLoading={isLoading} />
             </div>
             <div className="h-full">
-              <ResultCard prediction={prediction} probability={probability} />
+              <PredictionResultCard result={result} />
             </div>
           </div>
         </AuthGuard>

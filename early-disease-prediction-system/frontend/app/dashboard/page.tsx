@@ -8,18 +8,36 @@ import {
   BarElement,
   CategoryScale,
   Chart as ChartJS,
+  LineElement,
   Legend,
   LinearScale,
+  PointElement,
   Tooltip,
 } from "chart.js";
-import { Bar, Doughnut } from "react-chartjs-2";
+import { Bar, Doughnut, Line } from "react-chartjs-2";
 
 import AuthGuard from "@/components/AuthGuard";
 import Navbar from "@/components/Navbar";
 import { isSupabaseConfigured, supabase } from "@/utils/supabaseClient";
 import { PredictionRecord } from "@/utils/types";
 
-ChartJS.register(ArcElement, BarElement, CategoryScale, Legend, LinearScale, Tooltip);
+ChartJS.register(ArcElement, BarElement, CategoryScale, LineElement, PointElement, Legend, LinearScale, Tooltip);
+
+function getRiskBucket(probability: number): "Low" | "Medium" | "High" {
+  if (probability < 0.35) return "Low";
+  if (probability < 0.65) return "Medium";
+  return "High";
+}
+
+function calculateRiskScore(record: PredictionRecord): number {
+  return (
+    0.3 * Number(record.glucose) +
+    0.25 * Number(record.BMI) +
+    0.2 * Number(record.age) +
+    0.15 * Number(record.blood_pressure) +
+    0.1 * Number(record.cholesterol)
+  );
+}
 
 export default function DashboardPage() {
   const [predictions, setPredictions] = useState<PredictionRecord[]>([]);
@@ -64,25 +82,35 @@ export default function DashboardPage() {
 
   const stats = useMemo(() => {
     const total = predictions.length;
-    const highRisk = predictions.filter((item) => item.prediction === 1).length;
-    const lowRisk = total - highRisk;
-    const averageRisk = total > 0 ? predictions.reduce((sum, item) => sum + item.probability, 0) / total : 0;
+    const averageRiskScore =
+      total > 0 ? predictions.reduce((sum, item) => sum + calculateRiskScore(item), 0) / total : 0;
+    const averageFutureRisk =
+      total > 0 ? predictions.reduce((sum, item) => sum + Number(item.future_probability), 0) / total : 0;
 
-    return { averageRisk, highRisk, lowRisk, total };
+    const distribution = predictions.reduce(
+      (acc, item) => {
+        const bucket = getRiskBucket(Number(item.probability));
+        acc[bucket] += 1;
+        return acc;
+      },
+      { Low: 0, Medium: 0, High: 0 },
+    );
+
+    return { averageFutureRisk, averageRiskScore, distribution, total };
   }, [predictions]);
 
   const doughnutData = useMemo(
     () => ({
-      labels: ["High Risk", "Low Risk"],
+      labels: ["Low", "Medium", "High"],
       datasets: [
         {
-          data: [stats.highRisk, stats.lowRisk],
-          backgroundColor: ["#ef4444", "#10b981"],
+          data: [stats.distribution.Low, stats.distribution.Medium, stats.distribution.High],
+          backgroundColor: ["#10b981", "#f59e0b", "#ef4444"],
           borderWidth: 0,
         },
       ],
     }),
-    [stats.highRisk, stats.lowRisk],
+    [stats.distribution.High, stats.distribution.Low, stats.distribution.Medium],
   );
 
   const recentForChart = useMemo(() => [...predictions].slice(0, 7).reverse(), [predictions]);
@@ -92,10 +120,27 @@ export default function DashboardPage() {
       labels: recentForChart.map((item) => new Date(item.created_at).toLocaleDateString()),
       datasets: [
         {
-          label: "Risk probability (%)",
-          data: recentForChart.map((item) => Number((item.probability * 100).toFixed(2))),
+          label: "Health Risk Score",
+          data: recentForChart.map((item) => Number(calculateRiskScore(item).toFixed(2))),
           backgroundColor: "#2563eb",
           borderRadius: 8,
+        },
+      ],
+    }),
+    [recentForChart],
+  );
+
+  const futureLineData = useMemo(
+    () => ({
+      labels: recentForChart.map((item) => new Date(item.created_at).toLocaleDateString()),
+      datasets: [
+        {
+          label: "Future Disease Risk (%)",
+          data: recentForChart.map((item) => Number((Number(item.future_probability) * 100).toFixed(2))),
+          borderColor: "#1d4ed8",
+          backgroundColor: "rgba(37, 99, 235, 0.15)",
+          tension: 0.35,
+          fill: true,
         },
       ],
     }),
@@ -125,32 +170,32 @@ export default function DashboardPage() {
                   <p className="mt-3 text-4xl font-extrabold text-slate-900">{stats.total}</p>
                 </div>
                 <div className="surface-card p-6">
-                  <p className="text-xs font-semibold uppercase tracking-[0.16em] text-slate-500">High Risk Cases</p>
-                  <p className="mt-3 text-4xl font-extrabold text-red-600">{stats.highRisk}</p>
+                  <p className="text-xs font-semibold uppercase tracking-[0.16em] text-slate-500">Average Risk Score</p>
+                  <p className="mt-3 text-4xl font-extrabold text-brand-700">{stats.averageRiskScore.toFixed(1)}</p>
                 </div>
                 <div className="surface-card p-6">
-                  <p className="text-xs font-semibold uppercase tracking-[0.16em] text-slate-500">Average Risk</p>
-                  <p className="mt-3 text-4xl font-extrabold text-brand-700">{(stats.averageRisk * 100).toFixed(1)}%</p>
+                  <p className="text-xs font-semibold uppercase tracking-[0.16em] text-slate-500">Avg Future Risk</p>
+                  <p className="mt-3 text-4xl font-extrabold text-indigo-700">{(stats.averageFutureRisk * 100).toFixed(1)}%</p>
                 </div>
               </section>
 
               <section className="mt-7 grid grid-cols-1 gap-6 lg:grid-cols-2">
                 <div className="surface-card p-6">
-                  <h2 className="text-lg font-bold text-slate-900">Risk Distribution</h2>
+                  <h2 className="text-lg font-bold text-slate-900">Current Risk Distribution</h2>
                   <div className="mt-4 h-72">
                     {stats.total > 0 ? <Doughnut data={doughnutData} options={{ maintainAspectRatio: false }} /> : <EmptyState />}
                   </div>
                 </div>
 
                 <div className="surface-card p-6">
-                  <h2 className="text-lg font-bold text-slate-900">Recent Risk Probability</h2>
+                  <h2 className="text-lg font-bold text-slate-900">Health Score Trend</h2>
                   <div className="mt-4 h-72">
                     {stats.total > 0 ? (
                       <Bar
                         data={barData}
                         options={{
                           maintainAspectRatio: false,
-                          scales: { y: { beginAtZero: true, max: 100 } },
+                          scales: { y: { beginAtZero: true } },
                         }}
                       />
                     ) : (
@@ -160,20 +205,44 @@ export default function DashboardPage() {
                 </div>
               </section>
 
+              <section className="surface-card mt-7 p-6">
+                <h2 className="text-lg font-bold text-slate-900">Future Disease Risk Trend</h2>
+                <div className="mt-4 h-72">
+                  {stats.total > 0 ? (
+                    <Line
+                      data={futureLineData}
+                      options={{
+                        maintainAspectRatio: false,
+                        scales: {
+                          y: {
+                            beginAtZero: true,
+                            max: 100,
+                          },
+                        },
+                      }}
+                    />
+                  ) : (
+                    <EmptyState />
+                  )}
+                </div>
+              </section>
+
               <section className="surface-card mt-7 overflow-hidden">
                 <div className="border-b border-slate-200 px-6 py-4">
                   <h2 className="text-lg font-bold text-slate-900">Recent Predictions</h2>
                 </div>
                 <div className="overflow-x-auto">
-                  <table className="w-full min-w-[700px] border-collapse text-left">
+                  <table className="w-full min-w-[860px] border-collapse text-left">
                     <thead className="bg-slate-50">
                       <tr>
                         <th className="px-6 py-3 text-xs font-semibold uppercase tracking-wide text-slate-500">Date</th>
                         <th className="px-6 py-3 text-xs font-semibold uppercase tracking-wide text-slate-500">Age</th>
                         <th className="px-6 py-3 text-xs font-semibold uppercase tracking-wide text-slate-500">Glucose</th>
+                        <th className="px-6 py-3 text-xs font-semibold uppercase tracking-wide text-slate-500">Cholesterol</th>
                         <th className="px-6 py-3 text-xs font-semibold uppercase tracking-wide text-slate-500">BMI</th>
-                        <th className="px-6 py-3 text-xs font-semibold uppercase tracking-wide text-slate-500">Probability</th>
-                        <th className="px-6 py-3 text-xs font-semibold uppercase tracking-wide text-slate-500">Result</th>
+                        <th className="px-6 py-3 text-xs font-semibold uppercase tracking-wide text-slate-500">Current Prob.</th>
+                        <th className="px-6 py-3 text-xs font-semibold uppercase tracking-wide text-slate-500">Future Prob.</th>
+                        <th className="px-6 py-3 text-xs font-semibold uppercase tracking-wide text-slate-500">Risk Score</th>
                       </tr>
                     </thead>
                     <tbody>
@@ -182,17 +251,13 @@ export default function DashboardPage() {
                           <td className="px-6 py-3 text-sm text-slate-600">{new Date(item.created_at).toLocaleString()}</td>
                           <td className="px-6 py-3 text-sm text-slate-700">{item.age}</td>
                           <td className="px-6 py-3 text-sm text-slate-700">{item.glucose}</td>
+                          <td className="px-6 py-3 text-sm text-slate-700">{item.cholesterol}</td>
                           <td className="px-6 py-3 text-sm text-slate-700">{item.BMI}</td>
-                          <td className="px-6 py-3 text-sm font-semibold text-slate-800">{(item.probability * 100).toFixed(1)}%</td>
-                          <td className="px-6 py-3">
-                            <span
-                              className={`rounded-full px-3 py-1 text-xs font-bold ${
-                                item.prediction === 1 ? "bg-red-100 text-red-700" : "bg-emerald-100 text-emerald-700"
-                              }`}
-                            >
-                              {item.prediction === 1 ? "High Risk" : "Low Risk"}
-                            </span>
+                          <td className="px-6 py-3 text-sm font-semibold text-slate-800">{(Number(item.probability) * 100).toFixed(1)}%</td>
+                          <td className="px-6 py-3 text-sm font-semibold text-indigo-700">
+                            {(Number(item.future_probability) * 100).toFixed(1)}%
                           </td>
+                          <td className="px-6 py-3 text-sm text-slate-700">{calculateRiskScore(item).toFixed(1)}</td>
                         </tr>
                       ))}
                     </tbody>

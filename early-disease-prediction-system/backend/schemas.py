@@ -1,4 +1,8 @@
+from typing import Literal
+
 from pydantic import BaseModel, Field
+
+RiskLevel = Literal["Low", "Medium", "High"]
 
 
 class PredictionRequest(BaseModel):
@@ -10,8 +14,16 @@ class PredictionRequest(BaseModel):
     BMI: float = Field(ge=0)
     diabetes_pedigree: float = Field(ge=0)
     age: float = Field(ge=0)
+    cholesterol: float = Field(ge=0)
 
 
 class PredictionResponse(BaseModel):
-    prediction: int = Field(ge=0, le=1)
-    risk_probability: float = Field(ge=0, le=1)
+    current_risk: RiskLevel
+    future_risk: RiskLevel
+    probability: float = Field(ge=0, le=1)
+    future_probability: float = Field(ge=0, le=1)
+    diabetes_probability: float = Field(ge=0, le=1)
+    heart_probability: float = Field(ge=0, le=1)
+    risk_score: float = Field(ge=0)
+    key_risk_factors: list[str]
+    health_insights: list[str]

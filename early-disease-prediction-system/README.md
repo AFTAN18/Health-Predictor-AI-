@@ -1,43 +1,43 @@
-# AI Early Disease Prediction System (MVP)
+# AI Real-Time Disease Prediction System (MVP)
 
-Production-ready MVP for early disease prediction (Diabetes/Heart-risk style workflow) using:
-- `Next.js 14` + `TypeScript` + `TailwindCSS` + `Axios` + `Chart.js`
-- `FastAPI` + `scikit-learn` + `joblib` + `pydantic`
-- `Supabase` (PostgreSQL + Auth)
+Production-ready MVP for real-time and future disease risk prediction.
 
-## 1. Folder Structure
+## Supported Diseases
+- Diabetes
+- Heart Disease
+
+## Tech Stack
+- Frontend: Next.js 14, TypeScript, TailwindCSS, Chart.js
+- Backend: FastAPI, Python, scikit-learn, joblib, numpy
+- Database/Auth: Supabase PostgreSQL + Supabase Auth
+- Deployment: Vercel (frontend), Render/Railway (backend), Supabase (DB)
+
+## Project Structure
 
 ```text
 early-disease-prediction-system/
-  backend/
-    main.py
-    predictor.py
-    schemas.py
-    database.py
-    requirements.txt
-    .env.example
   frontend/
     app/
       login/page.tsx
       signup/page.tsx
       dashboard/page.tsx
       predict/page.tsx
-      layout.tsx
-      page.tsx
-      globals.css
     components/
-      AuthGuard.tsx
       PredictionForm.tsx
-      ResultCard.tsx
+      PredictionResult.tsx
+      RiskChart.tsx
       Navbar.tsx
+      AuthGuard.tsx
     utils/
       supabaseClient.ts
       config.ts
       types.ts
-    .env.local.example
-    package.json
-    next.config.mjs
-    tailwind.config.ts
+  backend/
+    main.py
+    predictor.py
+    schemas.py
+    risk_analysis.py
+    database.py
   ml/
     models/
       best_model.pkl
@@ -46,16 +46,32 @@ early-disease-prediction-system/
     schema.sql
 ```
 
-## 2. Backend API
+## Core Features
+- Real-time prediction via `/predict`
+- Future risk estimation (5-year projection)
+- Current and future risk classifications (Low/Medium/High)
+- Probability output:
+  - Overall probability
+  - Future probability
+  - Diabetes probability
+  - Heart disease probability
+- Key risk factors and health insights
+- Prediction history in Supabase
+- Dashboard charts:
+  - Risk distribution
+  - Health score trend
+  - Future disease risk trend
 
-### `POST /predict`
-- Requires `Authorization: Bearer <supabase_access_token>`
-- Loads `ml/models/best_model.pkl` and `ml/models/scaler.pkl`
-- Scales input then predicts class + probability
-- Saves prediction history to Supabase
+## Prediction API
 
-### Request body
+### Endpoint
+`POST /predict`
 
+### Headers
+- `Authorization: Bearer <supabase_access_token>`
+- `Content-Type: application/json`
+
+### Request Body
 ```json
 {
   "pregnancies": 2,
@@ -65,74 +81,89 @@ early-disease-prediction-system/
   "insulin": 120,
   "BMI": 31.4,
   "diabetes_pedigree": 0.62,
-  "age": 45
+  "age": 45,
+  "cholesterol": 210
 }
 ```
 
-### Example cURL request
+### Response
+```json
+{
+  "current_risk": "Medium",
+  "future_risk": "High",
+  "probability": 0.72,
+  "future_probability": 0.81,
+  "diabetes_probability": 0.68,
+  "heart_probability": 0.72,
+  "risk_score": 72.35,
+  "key_risk_factors": ["Glucose", "BMI", "Age"],
+  "health_insights": [
+    "Elevated glucose indicates increased metabolic risk.",
+    "Higher BMI may raise diabetes and cardiovascular risk over time.",
+    "Current overall risk classification is Medium.",
+    "Projected 5-year risk classification is High."
+  ]
+}
+```
 
+### Example cURL
 ```bash
 curl -X POST "http://localhost:8000/predict" \
   -H "Content-Type: application/json" \
   -H "Authorization: Bearer <supabase_access_token>" \
-  -d '{"pregnancies":2,"glucose":140,"blood_pressure":84,"skin_thickness":28,"insulin":120,"BMI":31.4,"diabetes_pedigree":0.62,"age":45}'
+  -d "{\"pregnancies\":2,\"glucose\":140,\"blood_pressure\":84,\"skin_thickness\":28,\"insulin\":120,\"BMI\":31.4,\"diabetes_pedigree\":0.62,\"age\":45,\"cholesterol\":210}"
 ```
 
-### Response
+## Risk Logic
 
-```json
-{
-  "prediction": 1,
-  "risk_probability": 0.7842
-}
-```
+### Health Risk Score
+`0.3*glucose + 0.25*BMI + 0.2*age + 0.15*blood_pressure + 0.1*cholesterol`
 
-## 3. Supabase Table
+### Risk Classification
+- Score `< 50` => Low
+- Score `50 to 70` => Medium
+- Score `> 70` => High
 
-Run SQL in [supabase/schema.sql](./supabase/schema.sql):
-- Table: `predictions`
-- Columns:
-  - `id`
-  - `user_id`
-  - `age`
-  - `glucose`
-  - `blood_pressure`
-  - `BMI`
-  - `prediction`
-  - `probability`
-  - `created_at`
-- Includes RLS policies for secure user access
+### Future Probability
+`future_probability = probability + (age_factor + bmi_factor + glucose_factor) * 0.05`
 
-## 4. Local Setup
+## Supabase Table
 
-## Prerequisites
-- Node.js 18+
-- Python 3.10+
-- Supabase project
+Run `supabase/schema.sql`.
 
-## Backend
+Table: `predictions`
+- `id`
+- `user_id`
+- `age`
+- `glucose`
+- `BMI`
+- `blood_pressure`
+- `cholesterol`
+- `prediction`
+- `probability`
+- `future_probability`
+- `created_at`
 
+## Local Setup
+
+## 1. Backend
 ```bash
 cd backend
 python -m venv .venv
 .venv\Scripts\activate
 pip install -r requirements.txt
 copy .env.example .env
-```
-
-Set backend `.env`:
-- `SUPABASE_URL`
-- `SUPABASE_KEY` (use service role key on backend)
-- `CORS_ORIGINS` (example: `http://localhost:3000`)
-
-Run backend:
-
-```bash
 uvicorn main:app --reload
 ```
 
-## Frontend
+Backend env:
+```env
+SUPABASE_URL=https://your-project-ref.supabase.co
+SUPABASE_KEY=your_supabase_service_role_key
+CORS_ORIGINS=http://localhost:3000
+```
 
+## 2. Frontend
 ```bash
 cd frontend
 npm install
@@ -140,52 +171,37 @@ copy .env.local.example .env.local
 npm run dev
 ```
 
-Set frontend `.env.local`:
-- `NEXT_PUBLIC_SUPABASE_URL`
-- `NEXT_PUBLIC_SUPABASE_KEY` (anon key)
-- `NEXT_PUBLIC_BACKEND_API_URL` (local: `http://localhost:8000`)
+Frontend env:
+```env
+NEXT_PUBLIC_SUPABASE_URL=https://your-project-ref.supabase.co
+NEXT_PUBLIC_SUPABASE_KEY=your_supabase_anon_key
+NEXT_PUBLIC_BACKEND_API_URL=http://localhost:8000
+```
 
-## 5. MVP Features Implemented
+## Deployment
 
-- Email/password signup
-- Email/password login
-- Protected routes (`/predict`, `/dashboard`)
-- Health parameter form with all model-required features
-- AI prediction + risk probability
-- Prediction history stored in Supabase
-- Dashboard analytics:
-  - Total predictions
-  - High/low risk distribution
-  - Recent probability trend
-  - Recent predictions table
-
-## 6. Deployment
-
-## Frontend (Vercel)
-1. Push repository to GitHub.
-2. Import `frontend` folder in Vercel.
-3. Configure environment variables:
+## Frontend -> Vercel
+1. Import `frontend` folder into Vercel.
+2. Set env vars:
    - `NEXT_PUBLIC_SUPABASE_URL`
    - `NEXT_PUBLIC_SUPABASE_KEY`
-   - `NEXT_PUBLIC_BACKEND_API_URL` (deployed backend URL)
-4. Deploy.
+   - `NEXT_PUBLIC_BACKEND_API_URL`
+3. Deploy.
 
-## Backend (Render or Railway)
-1. Deploy `backend` directory as a Python web service.
-2. Ensure `ml/models/best_model.pkl` and `ml/models/scaler.pkl` are present in deployment.
+## Backend -> Render / Railway
+1. Deploy `backend` directory as Python web service.
+2. Ensure `ml/models/best_model.pkl` and `ml/models/scaler.pkl` are available in deploy artifact.
 3. Start command:
    - `uvicorn main:app --host 0.0.0.0 --port $PORT`
-4. Configure env:
+4. Set env vars:
    - `SUPABASE_URL`
-   - `SUPABASE_KEY` (service role key)
+   - `SUPABASE_KEY`
    - `CORS_ORIGINS` (include Vercel domain)
 
-## Database/Auth (Supabase)
+## Supabase
 1. Run `supabase/schema.sql`.
-2. Enable Email auth provider in Supabase Auth.
-3. Copy project URL, anon key, and service role key into envs.
+2. Enable email/password auth in Supabase Auth.
+3. Add URL/keys into backend and frontend environments.
 
-## 7. Notes
-
-- This MVP is intended as an assistive risk-screening tool, not a clinical diagnosis.
-- Always surface a medical disclaimer in product usage/policy docs.
+## Medical Disclaimer
+This system provides AI-assisted risk screening only. It is not a diagnostic device and does not replace clinical judgment.
