@@ -197,6 +197,8 @@ NEXT_PUBLIC_BACKEND_API_URL=http://localhost:8000
    - `SUPABASE_URL`
    - `SUPABASE_KEY`
    - `CORS_ORIGINS` (include Vercel domain)
+5. Optional: use included [render.yaml](./render.yaml) blueprint for faster setup.
+6. For Railway/Heroku-style deploys, [backend/Procfile](./backend/Procfile) is included.
 
 ## Supabase
 1. Run `supabase/schema.sql`.
