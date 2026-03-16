@@ -40,7 +40,7 @@ def verify_user_token(access_token: str) -> str:
 
 
 def save_prediction(
-    user_id: str,
+    user_id: str | None,
     request_data: PredictionRequest,
     result: PredictionResponse,
 ) -> Any:
@@ -61,3 +61,17 @@ def save_prediction(
         "created_at": datetime.now(timezone.utc).isoformat(),
     }
     return supabase.table("predictions").insert(payload).execute()
+
+
+def fetch_recent_predictions(limit: int = 50) -> list[dict[str, Any]]:
+    if supabase is None:
+        raise RuntimeError("Supabase client is not configured. Set SUPABASE_URL and SUPABASE_KEY.")
+
+    response = (
+        supabase.table("predictions")
+        .select("*")
+        .order("created_at", desc=True)
+        .limit(limit)
+        .execute()
+    )
+    return response.data or []

@@ -1,18 +1,17 @@
 import os
+from typing import Any
 
 from dotenv import load_dotenv
-from fastapi import Depends, FastAPI, HTTPException, status
+from fastapi import FastAPI, Header, HTTPException, Query, status
 from fastapi.middleware.cors import CORSMiddleware
-from fastapi.security import HTTPAuthorizationCredentials, HTTPBearer
 
-from database import save_prediction, supabase, verify_user_token
+from database import fetch_recent_predictions, save_prediction, supabase, verify_user_token
 from predictor import predictor
-from schemas import PredictionRequest, PredictionResponse
+from schemas import PredictionHistoryItem, PredictionRequest, PredictionResponse
 
 load_dotenv()
 
 app = FastAPI(title="AI Early Disease Prediction API", version="1.0.0")
-security = HTTPBearer(auto_error=False)
 
 raw_origins = os.getenv("CORS_ORIGINS", "http://localhost:3000,http://127.0.0.1:3000")
 allowed_origins = [origin.strip() for origin in raw_origins.split(",") if origin.strip()]
@@ -26,22 +25,20 @@ app.add_middleware(
 )
 
 
-def get_current_user_id(
-    credentials: HTTPAuthorizationCredentials | None = Depends(security),
-) -> str:
-    if credentials is None or not credentials.credentials:
-        raise HTTPException(
-            status_code=status.HTTP_401_UNAUTHORIZED,
-            detail="Missing bearer token.",
-        )
+def get_optional_user_id(authorization: str | None) -> str | None:
+    if authorization is None:
+        return None
+    if not authorization.lower().startswith("bearer "):
+        return None
+
+    access_token = authorization.split(" ", 1)[1].strip()
+    if not access_token:
+        return None
 
     try:
-        return verify_user_token(credentials.credentials)
-    except Exception as exc:
-        raise HTTPException(
-            status_code=status.HTTP_401_UNAUTHORIZED,
-            detail=f"Invalid token: {exc}",
-        ) from exc
+        return verify_user_token(access_token)
+    except Exception:
+        return None
 
 
 @app.get("/")
@@ -61,16 +58,26 @@ def health() -> dict[str, str]:
 @app.post("/predict", response_model=PredictionResponse)
 def predict_disease(
     request: PredictionRequest,
-    user_id: str = Depends(get_current_user_id),
+    authorization: str | None = Header(default=None),
 ) -> PredictionResponse:
     result = predictor.predict(request)
+    user_id = get_optional_user_id(authorization)
 
     try:
         save_prediction(user_id=user_id, request_data=request, result=result)
     except Exception as exc:
-        raise HTTPException(
-            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
-            detail=f"Prediction generated but failed to save history: {exc}",
-        ) from exc
+        print(f"Warning: prediction generated but failed to save history: {exc}")
 
     return result
+
+
+@app.get("/predictions", response_model=list[PredictionHistoryItem])
+def get_predictions(limit: int = Query(default=50, ge=1, le=200)) -> list[PredictionHistoryItem]:
+    try:
+        rows: list[dict[str, Any]] = fetch_recent_predictions(limit=limit)
+        return [PredictionHistoryItem(**row) for row in rows]
+    except Exception as exc:
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail=f"Failed to load prediction history: {exc}",
+        ) from exc

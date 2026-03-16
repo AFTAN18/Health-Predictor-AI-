@@ -1,47 +1,10 @@
 "use client";
 
 import Link from "next/link";
-import { usePathname, useRouter } from "next/navigation";
-import { useEffect, useState } from "react";
-
-import { isSupabaseConfigured, supabase } from "@/utils/supabaseClient";
+import { usePathname } from "next/navigation";
 
 export default function Navbar() {
   const pathname = usePathname();
-  const router = useRouter();
-  const [isAuthenticated, setIsAuthenticated] = useState(false);
-
-  useEffect(() => {
-    if (!isSupabaseConfigured) {
-      setIsAuthenticated(false);
-      return;
-    }
-
-    const getSession = async () => {
-      const { data } = await supabase.auth.getSession();
-      setIsAuthenticated(Boolean(data.session));
-    };
-
-    getSession();
-
-    const { data: listener } = supabase.auth.onAuthStateChange((_event, session) => {
-      setIsAuthenticated(Boolean(session));
-    });
-
-    return () => {
-      listener.subscription.unsubscribe();
-    };
-  }, []);
-
-  const logout = async () => {
-    if (!isSupabaseConfigured) {
-      router.push("/login");
-      return;
-    }
-
-    await supabase.auth.signOut();
-    router.push("/login");
-  };
 
   const linkClass = (href: string) =>
     `rounded-lg px-3 py-2 text-sm font-medium transition-colors ${
@@ -61,35 +24,12 @@ export default function Navbar() {
         </div>
 
         <div className="flex items-center gap-2">
-          {isAuthenticated ? (
-            <>
-              <Link href="/dashboard" className={linkClass("/dashboard")}>
-                Dashboard
-              </Link>
-              <Link href="/predict" className={linkClass("/predict")}>
-                Predict
-              </Link>
-              <button
-                type="button"
-                onClick={logout}
-                className="rounded-lg bg-brand-600 px-3 py-2 text-sm font-semibold text-white transition-colors hover:bg-brand-700"
-              >
-                Logout
-              </button>
-            </>
-          ) : (
-            <>
-              <Link href="/login" className={linkClass("/login")}>
-                Login
-              </Link>
-              <Link
-                href="/signup"
-                className="rounded-lg bg-brand-600 px-3 py-2 text-sm font-semibold text-white transition-colors hover:bg-brand-700"
-              >
-                Sign up
-              </Link>
-            </>
-          )}
+          <Link href="/dashboard" className={linkClass("/dashboard")}>
+            Dashboard
+          </Link>
+          <Link href="/predict" className={linkClass("/predict")}>
+            Predict
+          </Link>
         </div>
       </div>
     </nav>

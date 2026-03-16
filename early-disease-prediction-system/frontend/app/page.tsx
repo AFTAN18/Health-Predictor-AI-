@@ -25,14 +25,8 @@ export default function Home() {
 
             <div className="mt-8 flex flex-wrap gap-3">
               <Link
-                href="/signup"
-                className="rounded-xl bg-brand-600 px-6 py-3 text-sm font-semibold text-white transition-colors hover:bg-brand-700"
-              >
-                Create account
-              </Link>
-              <Link
                 href="/predict"
-                className="rounded-xl border border-slate-300 bg-white px-6 py-3 text-sm font-semibold text-slate-700 transition-colors hover:border-brand-300 hover:text-brand-700"
+                className="rounded-xl bg-brand-600 px-6 py-3 text-sm font-semibold text-white transition-colors hover:bg-brand-700"
               >
                 Start prediction
               </Link>
@@ -49,7 +43,7 @@ export default function Home() {
             <div>
               <p className="text-xs font-semibold uppercase tracking-[0.2em] text-slate-500">MVP Features</p>
               <ul className="mt-4 space-y-3 text-sm text-slate-700">
-                <li className="rounded-lg bg-slate-50 px-3 py-2">Secure signup/login with Supabase Auth</li>
+                <li className="rounded-lg bg-slate-50 px-3 py-2">Instant guest prediction flow (no login required)</li>
                 <li className="rounded-lg bg-slate-50 px-3 py-2">FastAPI prediction API with model + scaler</li>
                 <li className="rounded-lg bg-slate-50 px-3 py-2">Current and future risk probability scoring</li>
                 <li className="rounded-lg bg-slate-50 px-3 py-2">Dashboard trends for future disease risk</li>

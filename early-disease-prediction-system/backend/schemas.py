@@ -27,3 +27,17 @@ class PredictionResponse(BaseModel):
     risk_score: float = Field(ge=0)
     key_risk_factors: list[str]
     health_insights: list[str]
+
+
+class PredictionHistoryItem(BaseModel):
+    id: str
+    user_id: str | None = None
+    age: float
+    glucose: float
+    blood_pressure: float
+    cholesterol: float
+    BMI: float
+    prediction: int
+    probability: float
+    future_probability: float
+    created_at: str

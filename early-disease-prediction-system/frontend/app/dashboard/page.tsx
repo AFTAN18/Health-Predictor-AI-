@@ -2,6 +2,7 @@
 
 import { useEffect, useMemo, useState } from "react";
 import Link from "next/link";
+import axios from "axios";
 
 import {
   ArcElement,
@@ -16,9 +17,8 @@ import {
 } from "chart.js";
 import { Bar, Doughnut, Line } from "react-chartjs-2";
 
-import AuthGuard from "@/components/AuthGuard";
 import Navbar from "@/components/Navbar";
-import { isSupabaseConfigured, supabase } from "@/utils/supabaseClient";
+import { backendApiUrl } from "@/utils/config";
 import { PredictionRecord } from "@/utils/types";
 
 ChartJS.register(ArcElement, BarElement, CategoryScale, LineElement, PointElement, Legend, LinearScale, Tooltip);
@@ -49,29 +49,18 @@ export default function DashboardPage() {
       setIsLoading(true);
       setError(null);
 
-      if (!isSupabaseConfigured) {
-        setError("Supabase is not configured. Set NEXT_PUBLIC_SUPABASE_URL and NEXT_PUBLIC_SUPABASE_KEY.");
-        setIsLoading(false);
-        return;
-      }
-
-      const { data: authData, error: authError } = await supabase.auth.getUser();
-      if (authError || !authData.user) {
-        setError("Please login again to load analytics.");
-        setIsLoading(false);
-        return;
-      }
-
-      const { data, error: fetchError } = await supabase
-        .from("predictions")
-        .select("*")
-        .eq("user_id", authData.user.id)
-        .order("created_at", { ascending: false });
-
-      if (fetchError) {
-        setError(fetchError.message);
-      } else {
-        setPredictions((data || []) as PredictionRecord[]);
+      try {
+        const response = await axios.get<PredictionRecord[]>(`${backendApiUrl}/predictions?limit=100`);
+        setPredictions(response.data || []);
+      } catch (err: unknown) {
+        if (axios.isAxiosError(err)) {
+          const detail = (err.response?.data as { detail?: string } | undefined)?.detail;
+          setError(detail || "Failed to load dashboard data.");
+        } else if (err instanceof Error) {
+          setError(err.message);
+        } else {
+          setError("Failed to load dashboard data.");
+        }
       }
 
       setIsLoading(false);
@@ -152,130 +141,128 @@ export default function DashboardPage() {
       <Navbar />
 
       <main className="mx-auto w-full max-w-7xl px-4 py-10 sm:px-6 lg:px-8">
-        <AuthGuard>
-          <h1 className="text-3xl font-extrabold tracking-tight text-slate-900">Health Analytics Dashboard</h1>
-          <p className="mt-2 text-sm text-slate-600">Track prediction volume, risk distribution, and your recent records.</p>
+        <h1 className="text-3xl font-extrabold tracking-tight text-slate-900">Health Analytics Dashboard</h1>
+        <p className="mt-2 text-sm text-slate-600">Track prediction volume, risk distribution, and your recent records.</p>
 
-          {error && <div className="mt-5 rounded-lg bg-red-50 px-4 py-3 text-sm text-red-700">{error}</div>}
+        {error && <div className="mt-5 rounded-lg bg-red-50 px-4 py-3 text-sm text-red-700">{error}</div>}
 
-          {isLoading ? (
-            <div className="mt-14 flex justify-center">
-              <div className="h-12 w-12 animate-spin rounded-full border-2 border-brand-200 border-t-brand-600" />
-            </div>
-          ) : (
-            <>
-              <section className="mt-7 grid grid-cols-1 gap-5 md:grid-cols-3">
-                <div className="surface-card p-6">
-                  <p className="text-xs font-semibold uppercase tracking-[0.16em] text-slate-500">Total Predictions</p>
-                  <p className="mt-3 text-4xl font-extrabold text-slate-900">{stats.total}</p>
-                </div>
-                <div className="surface-card p-6">
-                  <p className="text-xs font-semibold uppercase tracking-[0.16em] text-slate-500">Average Risk Score</p>
-                  <p className="mt-3 text-4xl font-extrabold text-brand-700">{stats.averageRiskScore.toFixed(1)}</p>
-                </div>
-                <div className="surface-card p-6">
-                  <p className="text-xs font-semibold uppercase tracking-[0.16em] text-slate-500">Avg Future Risk</p>
-                  <p className="mt-3 text-4xl font-extrabold text-indigo-700">{(stats.averageFutureRisk * 100).toFixed(1)}%</p>
-                </div>
-              </section>
+        {isLoading ? (
+          <div className="mt-14 flex justify-center">
+            <div className="h-12 w-12 animate-spin rounded-full border-2 border-brand-200 border-t-brand-600" />
+          </div>
+        ) : (
+          <>
+            <section className="mt-7 grid grid-cols-1 gap-5 md:grid-cols-3">
+              <div className="surface-card p-6">
+                <p className="text-xs font-semibold uppercase tracking-[0.16em] text-slate-500">Total Predictions</p>
+                <p className="mt-3 text-4xl font-extrabold text-slate-900">{stats.total}</p>
+              </div>
+              <div className="surface-card p-6">
+                <p className="text-xs font-semibold uppercase tracking-[0.16em] text-slate-500">Average Risk Score</p>
+                <p className="mt-3 text-4xl font-extrabold text-brand-700">{stats.averageRiskScore.toFixed(1)}</p>
+              </div>
+              <div className="surface-card p-6">
+                <p className="text-xs font-semibold uppercase tracking-[0.16em] text-slate-500">Avg Future Risk</p>
+                <p className="mt-3 text-4xl font-extrabold text-indigo-700">{(stats.averageFutureRisk * 100).toFixed(1)}%</p>
+              </div>
+            </section>
 
-              <section className="mt-7 grid grid-cols-1 gap-6 lg:grid-cols-2">
-                <div className="surface-card p-6">
-                  <h2 className="text-lg font-bold text-slate-900">Current Risk Distribution</h2>
-                  <div className="mt-4 h-72">
-                    {stats.total > 0 ? <Doughnut data={doughnutData} options={{ maintainAspectRatio: false }} /> : <EmptyState />}
-                  </div>
+            <section className="mt-7 grid grid-cols-1 gap-6 lg:grid-cols-2">
+              <div className="surface-card p-6">
+                <h2 className="text-lg font-bold text-slate-900">Current Risk Distribution</h2>
+                <div className="mt-4 h-72">
+                  {stats.total > 0 ? <Doughnut data={doughnutData} options={{ maintainAspectRatio: false }} /> : <EmptyState />}
                 </div>
+              </div>
 
-                <div className="surface-card p-6">
-                  <h2 className="text-lg font-bold text-slate-900">Health Score Trend</h2>
-                  <div className="mt-4 h-72">
-                    {stats.total > 0 ? (
-                      <Bar
-                        data={barData}
-                        options={{
-                          maintainAspectRatio: false,
-                          scales: { y: { beginAtZero: true } },
-                        }}
-                      />
-                    ) : (
-                      <EmptyState />
-                    )}
-                  </div>
-                </div>
-              </section>
-
-              <section className="surface-card mt-7 p-6">
-                <h2 className="text-lg font-bold text-slate-900">Future Disease Risk Trend</h2>
+              <div className="surface-card p-6">
+                <h2 className="text-lg font-bold text-slate-900">Health Score Trend</h2>
                 <div className="mt-4 h-72">
                   {stats.total > 0 ? (
-                    <Line
-                      data={futureLineData}
+                    <Bar
+                      data={barData}
                       options={{
                         maintainAspectRatio: false,
-                        scales: {
-                          y: {
-                            beginAtZero: true,
-                            max: 100,
-                          },
-                        },
+                        scales: { y: { beginAtZero: true } },
                       }}
                     />
                   ) : (
                     <EmptyState />
                   )}
                 </div>
-              </section>
+              </div>
+            </section>
 
-              <section className="surface-card mt-7 overflow-hidden">
-                <div className="border-b border-slate-200 px-6 py-4">
-                  <h2 className="text-lg font-bold text-slate-900">Recent Predictions</h2>
-                </div>
-                <div className="overflow-x-auto">
-                  <table className="w-full min-w-[860px] border-collapse text-left">
-                    <thead className="bg-slate-50">
-                      <tr>
-                        <th className="px-6 py-3 text-xs font-semibold uppercase tracking-wide text-slate-500">Date</th>
-                        <th className="px-6 py-3 text-xs font-semibold uppercase tracking-wide text-slate-500">Age</th>
-                        <th className="px-6 py-3 text-xs font-semibold uppercase tracking-wide text-slate-500">Glucose</th>
-                        <th className="px-6 py-3 text-xs font-semibold uppercase tracking-wide text-slate-500">Cholesterol</th>
-                        <th className="px-6 py-3 text-xs font-semibold uppercase tracking-wide text-slate-500">BMI</th>
-                        <th className="px-6 py-3 text-xs font-semibold uppercase tracking-wide text-slate-500">Current Prob.</th>
-                        <th className="px-6 py-3 text-xs font-semibold uppercase tracking-wide text-slate-500">Future Prob.</th>
-                        <th className="px-6 py-3 text-xs font-semibold uppercase tracking-wide text-slate-500">Risk Score</th>
+            <section className="surface-card mt-7 p-6">
+              <h2 className="text-lg font-bold text-slate-900">Future Disease Risk Trend</h2>
+              <div className="mt-4 h-72">
+                {stats.total > 0 ? (
+                  <Line
+                    data={futureLineData}
+                    options={{
+                      maintainAspectRatio: false,
+                      scales: {
+                        y: {
+                          beginAtZero: true,
+                          max: 100,
+                        },
+                      },
+                    }}
+                  />
+                ) : (
+                  <EmptyState />
+                )}
+              </div>
+            </section>
+
+            <section className="surface-card mt-7 overflow-hidden">
+              <div className="border-b border-slate-200 px-6 py-4">
+                <h2 className="text-lg font-bold text-slate-900">Recent Predictions</h2>
+              </div>
+              <div className="overflow-x-auto">
+                <table className="w-full min-w-[860px] border-collapse text-left">
+                  <thead className="bg-slate-50">
+                    <tr>
+                      <th className="px-6 py-3 text-xs font-semibold uppercase tracking-wide text-slate-500">Date</th>
+                      <th className="px-6 py-3 text-xs font-semibold uppercase tracking-wide text-slate-500">Age</th>
+                      <th className="px-6 py-3 text-xs font-semibold uppercase tracking-wide text-slate-500">Glucose</th>
+                      <th className="px-6 py-3 text-xs font-semibold uppercase tracking-wide text-slate-500">Cholesterol</th>
+                      <th className="px-6 py-3 text-xs font-semibold uppercase tracking-wide text-slate-500">BMI</th>
+                      <th className="px-6 py-3 text-xs font-semibold uppercase tracking-wide text-slate-500">Current Prob.</th>
+                      <th className="px-6 py-3 text-xs font-semibold uppercase tracking-wide text-slate-500">Future Prob.</th>
+                      <th className="px-6 py-3 text-xs font-semibold uppercase tracking-wide text-slate-500">Risk Score</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {predictions.slice(0, 15).map((item) => (
+                      <tr key={item.id} className="border-t border-slate-100">
+                        <td className="px-6 py-3 text-sm text-slate-600">{new Date(item.created_at).toLocaleString()}</td>
+                        <td className="px-6 py-3 text-sm text-slate-700">{item.age}</td>
+                        <td className="px-6 py-3 text-sm text-slate-700">{item.glucose}</td>
+                        <td className="px-6 py-3 text-sm text-slate-700">{item.cholesterol}</td>
+                        <td className="px-6 py-3 text-sm text-slate-700">{item.BMI}</td>
+                        <td className="px-6 py-3 text-sm font-semibold text-slate-800">{(Number(item.probability) * 100).toFixed(1)}%</td>
+                        <td className="px-6 py-3 text-sm font-semibold text-indigo-700">
+                          {(Number(item.future_probability) * 100).toFixed(1)}%
+                        </td>
+                        <td className="px-6 py-3 text-sm text-slate-700">{calculateRiskScore(item).toFixed(1)}</td>
                       </tr>
-                    </thead>
-                    <tbody>
-                      {predictions.slice(0, 15).map((item) => (
-                        <tr key={item.id} className="border-t border-slate-100">
-                          <td className="px-6 py-3 text-sm text-slate-600">{new Date(item.created_at).toLocaleString()}</td>
-                          <td className="px-6 py-3 text-sm text-slate-700">{item.age}</td>
-                          <td className="px-6 py-3 text-sm text-slate-700">{item.glucose}</td>
-                          <td className="px-6 py-3 text-sm text-slate-700">{item.cholesterol}</td>
-                          <td className="px-6 py-3 text-sm text-slate-700">{item.BMI}</td>
-                          <td className="px-6 py-3 text-sm font-semibold text-slate-800">{(Number(item.probability) * 100).toFixed(1)}%</td>
-                          <td className="px-6 py-3 text-sm font-semibold text-indigo-700">
-                            {(Number(item.future_probability) * 100).toFixed(1)}%
-                          </td>
-                          <td className="px-6 py-3 text-sm text-slate-700">{calculateRiskScore(item).toFixed(1)}</td>
-                        </tr>
-                      ))}
-                    </tbody>
-                  </table>
-                  {predictions.length === 0 && (
-                    <div className="px-6 py-10 text-sm text-slate-500">
-                      No predictions yet.{" "}
-                      <Link href="/predict" className="font-semibold text-brand-700 hover:underline">
-                        Run your first prediction
-                      </Link>
-                      .
-                    </div>
-                  )}
-                </div>
-              </section>
-            </>
-          )}
-        </AuthGuard>
+                    ))}
+                  </tbody>
+                </table>
+                {predictions.length === 0 && (
+                  <div className="px-6 py-10 text-sm text-slate-500">
+                    No predictions yet.{" "}
+                    <Link href="/predict" className="font-semibold text-brand-700 hover:underline">
+                      Run your first prediction
+                    </Link>
+                    .
+                  </div>
+                )}
+              </div>
+            </section>
+          </>
+        )}
       </main>
     </div>
   );

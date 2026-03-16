@@ -9,7 +9,7 @@ Production-ready MVP for real-time and future disease risk prediction.
 ## Tech Stack
 - Frontend: Next.js 14, TypeScript, TailwindCSS, Chart.js
 - Backend: FastAPI, Python, scikit-learn, joblib, numpy
-- Database/Auth: Supabase PostgreSQL + Supabase Auth
+- Database: Supabase PostgreSQL
 - Deployment: Vercel (frontend), Render/Railway (backend), Supabase (DB)
 
 ## Project Structure
@@ -18,8 +18,6 @@ Production-ready MVP for real-time and future disease risk prediction.
 early-disease-prediction-system/
   frontend/
     app/
-      login/page.tsx
-      signup/page.tsx
       dashboard/page.tsx
       predict/page.tsx
     components/
@@ -27,7 +25,6 @@ early-disease-prediction-system/
       PredictionResult.tsx
       RiskChart.tsx
       Navbar.tsx
-      AuthGuard.tsx
     utils/
       supabaseClient.ts
       config.ts
@@ -68,8 +65,8 @@ early-disease-prediction-system/
 `POST /predict`
 
 ### Headers
-- `Authorization: Bearer <supabase_access_token>`
 - `Content-Type: application/json`
+  - `Authorization` header is optional. If supplied with a valid Supabase bearer token, prediction history is linked to that user.
 
 ### Request Body
 ```json
@@ -110,7 +107,6 @@ early-disease-prediction-system/
 ```bash
 curl -X POST "http://localhost:8000/predict" \
   -H "Content-Type: application/json" \
-  -H "Authorization: Bearer <supabase_access_token>" \
   -d "{\"pregnancies\":2,\"glucose\":140,\"blood_pressure\":84,\"skin_thickness\":28,\"insulin\":120,\"BMI\":31.4,\"diabetes_pedigree\":0.62,\"age\":45,\"cholesterol\":210}"
 ```
 
@@ -173,8 +169,6 @@ npm run dev
 
 Frontend env:
 ```env
-NEXT_PUBLIC_SUPABASE_URL=https://your-project-ref.supabase.co
-NEXT_PUBLIC_SUPABASE_KEY=your_supabase_anon_key
 NEXT_PUBLIC_BACKEND_API_URL=http://localhost:8000
 ```
 
@@ -202,8 +196,7 @@ NEXT_PUBLIC_BACKEND_API_URL=http://localhost:8000
 
 ## Supabase
 1. Run `supabase/schema.sql`.
-2. Enable email/password auth in Supabase Auth.
-3. Add URL/keys into backend and frontend environments.
+2. Add URL/keys into backend environment.
 
 ## Medical Disclaimer
 This system provides AI-assisted risk screening only. It is not a diagnostic device and does not replace clinical judgment.
