@@ -1,15 +1,17 @@
-from pydantic import BaseModel
+from pydantic import BaseModel, Field
+
 
 class PredictionRequest(BaseModel):
-    pregnancies: float
-    glucose: float
-    blood_pressure: float
-    skin_thickness: float
-    insulin: float
-    BMI: float
-    diabetes_pedigree: float
-    age: float
+    pregnancies: float = Field(ge=0)
+    glucose: float = Field(ge=0)
+    blood_pressure: float = Field(ge=0)
+    skin_thickness: float = Field(ge=0)
+    insulin: float = Field(ge=0)
+    BMI: float = Field(ge=0)
+    diabetes_pedigree: float = Field(ge=0)
+    age: float = Field(ge=0)
+
 
 class PredictionResponse(BaseModel):
-    prediction: int
-    risk_probability: float
+    prediction: int = Field(ge=0, le=1)
+    risk_probability: float = Field(ge=0, le=1)

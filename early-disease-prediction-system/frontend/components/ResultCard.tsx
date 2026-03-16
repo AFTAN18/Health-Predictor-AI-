@@ -1,5 +1,6 @@
 "use client";
-import React from 'react';
+
+import React from "react";
 
 interface ResultCardProps {
   prediction: number | null;
@@ -9,13 +10,15 @@ interface ResultCardProps {
 export default function ResultCard({ prediction, probability }: ResultCardProps) {
   if (prediction === null || probability === null) {
     return (
-      <div className="bg-white p-8 rounded-2xl shadow-sm border border-gray-100 flex flex-col items-center justify-center h-full min-h-[400px]">
-        <div className="w-20 h-20 bg-blue-50 rounded-full flex items-center justify-center mb-6">
-          <svg className="w-10 h-10 text-blue-300" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
+      <div className="surface-card flex h-full min-h-[420px] flex-col items-center justify-center p-8">
+        <div className="mb-5 flex h-20 w-20 items-center justify-center rounded-full bg-brand-50">
+          <svg className="h-10 w-10 text-brand-300" fill="none" stroke="currentColor" viewBox="0 0 24 24">
             <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z" />
           </svg>
         </div>
-        <h3 className="text-xl font-semibold text-gray-500 text-center">Enter your details and click predict to see your health risk assessment.</h3>
+        <h3 className="text-center text-xl font-semibold text-slate-500">
+          Enter your details and submit the form to get your prediction.
+        </h3>
       </div>
     );
   }
@@ -24,50 +27,47 @@ export default function ResultCard({ prediction, probability }: ResultCardProps)
   const percentage = (probability * 100).toFixed(1);
 
   return (
-    <div className={`p-8 rounded-2xl shadow-lg border h-full flex flex-col items-center justify-center transition-all ${
-      isHighRisk ? 'bg-red-50 border-red-200' : 'bg-green-50 border-green-200'
-    }`}>
-      <div className="text-center w-full">
-        <h2 className={`text-3xl font-extrabold mb-8 drop-shadow-sm tracking-tight ${isHighRisk ? 'text-red-700' : 'text-green-700'}`}>
-          {isHighRisk ? 'High Risk Detected' : 'Low Risk Detected'}
+    <div
+      className={`h-full rounded-2xl border p-8 transition-all ${
+        isHighRisk ? "border-red-200 bg-red-50" : "border-emerald-200 bg-emerald-50"
+      }`}
+    >
+      <div className="w-full text-center">
+        <p className="text-xs font-semibold uppercase tracking-[0.18em] text-slate-500">Prediction Result</p>
+        <h2 className={`mt-2 text-3xl font-extrabold tracking-tight ${isHighRisk ? "text-red-700" : "text-emerald-700"}`}>
+          {isHighRisk ? "High Risk Detected" : "Low Risk Detected"}
         </h2>
-        
-        <div className="relative inline-block mb-8">
-          <svg className="w-48 h-48 transform -rotate-90">
-            <circle
-              className="text-gray-200"
-              strokeWidth="12"
-              stroke="currentColor"
-              fill="transparent"
-              r="70"
-              cx="96"
-              cy="96"
-            />
-            <circle
-              className={`${isHighRisk ? 'text-red-500' : 'text-green-500'} transition-all duration-1000 ease-in-out drop-shadow-md`}
-              strokeWidth="12"
-              strokeDasharray={440}
-              strokeDashoffset={440 - (440 * probability)}
-              strokeLinecap="round"
-              stroke="currentColor"
-              fill="transparent"
-              r="70"
-              cx="96"
-              cy="96"
-            />
-          </svg>
-          <div className="absolute top-1/2 left-1/2 transform -translate-x-1/2 -translate-y-1/2 flex flex-col items-center">
-            <span className={`text-4xl font-black ${isHighRisk ? 'text-red-600' : 'text-green-600'}`}>{percentage}%</span>
-            <span className="text-xs font-semibold uppercase tracking-wider text-gray-500 mt-1">Probability</span>
+
+        <div className="mb-7 mt-8 grid place-items-center">
+          <div className="relative h-44 w-44">
+            <svg className="h-full w-full -rotate-90 transform">
+              <circle className="text-slate-200" strokeWidth="12" stroke="currentColor" fill="transparent" r="70" cx="88" cy="88" />
+              <circle
+                className={`${isHighRisk ? "text-red-500" : "text-emerald-500"} transition-all duration-1000 ease-in-out`}
+                strokeWidth="12"
+                strokeDasharray={440}
+                strokeDashoffset={440 - 440 * probability}
+                strokeLinecap="round"
+                stroke="currentColor"
+                fill="transparent"
+                r="70"
+                cx="88"
+                cy="88"
+              />
+            </svg>
+            <div className="absolute inset-0 flex flex-col items-center justify-center">
+              <span className={`text-4xl font-black ${isHighRisk ? "text-red-600" : "text-emerald-600"}`}>{percentage}%</span>
+              <span className="mt-1 text-xs font-semibold uppercase tracking-wider text-slate-500">Risk Probability</span>
+            </div>
           </div>
         </div>
 
-        <div className={`p-6 rounded-xl ${isHighRisk ? 'bg-red-100/50' : 'bg-green-100/50'} text-left backdrop-blur-sm`}>
-          <h4 className={`text-lg font-bold mb-2 ${isHighRisk ? 'text-red-800' : 'text-green-800'}`}>What this means:</h4>
-          <p className={`text-sm ${isHighRisk ? 'text-red-700' : 'text-green-700'} leading-relaxed`}>
-            {isHighRisk 
-              ? `Our AI model indicates a high probability (${percentage}%) of early disease onset based on your current health parameters. Please consult with a healthcare professional to review these results.` 
-              : `Great news! Our AI model indicates a low probability (${percentage}%) of early disease onset based on your current health parameters. Continue maintaining a healthy lifestyle.`}
+        <div className={`rounded-xl p-5 text-left ${isHighRisk ? "bg-red-100/70" : "bg-emerald-100/70"}`}>
+          <h4 className={`mb-1.5 text-lg font-bold ${isHighRisk ? "text-red-800" : "text-emerald-800"}`}>What this means</h4>
+          <p className={`text-sm leading-relaxed ${isHighRisk ? "text-red-700" : "text-emerald-700"}`}>
+            {isHighRisk
+              ? `The model estimates elevated disease risk (${percentage}%). Please consult a licensed medical professional for a clinical evaluation.`
+              : `The model estimates lower disease risk (${percentage}%). Continue regular preventive care and healthy routines.`}
           </p>
         </div>
       </div>

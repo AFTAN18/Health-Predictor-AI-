@@ -1,73 +1,191 @@
-# AI Early Disease Prediction System
+# AI Early Disease Prediction System (MVP)
 
-A complete MVP full-stack application for predicting early onset diseases (e.g., Diabetes) using an authenticated UI and Machine Learning backend.
+Production-ready MVP for early disease prediction (Diabetes/Heart-risk style workflow) using:
+- `Next.js 14` + `TypeScript` + `TailwindCSS` + `Axios` + `Chart.js`
+- `FastAPI` + `scikit-learn` + `joblib` + `pydantic`
+- `Supabase` (PostgreSQL + Auth)
 
-## Tech Stack
-- **Frontend**: Next.js 14, TailwindCSS, Chart.js, Axios
-- **Backend**: FastAPI, Scikit-Learn, Joblib, Pydantic
-- **Database / Auth**: Supabase (PostgreSQL)
+## 1. Folder Structure
 
-## Project Structure
-```
+```text
 early-disease-prediction-system/
-├── backend/                  # FastAPI Backend API
-│   ├── main.py               # Main API routes
-│   ├── predictor.py          # ML Inference Logic
-│   ├── database.py           # Supabase Integration
-│   ├── schemas.py            # Pydantic Schemas
-│   └── requirements.txt      # Python dependencies
-├── frontend/                 # Next.js Application
-│   ├── app/                  # Application Routes (Next.js App Router)
-│   ├── components/           # Reusable UI Components
-│   └── utils/                # Utilities (Auth & APIs)
-└── ml/                       # Machine Learning Code
-    ├── train_genuine_model.py# Fetches openML datasets & trains the genuine ML model
-    └── models/               # Contains best_model.pkl and scaler.pkl
+  backend/
+    main.py
+    predictor.py
+    schemas.py
+    database.py
+    requirements.txt
+    .env.example
+  frontend/
+    app/
+      login/page.tsx
+      signup/page.tsx
+      dashboard/page.tsx
+      predict/page.tsx
+      layout.tsx
+      page.tsx
+      globals.css
+    components/
+      AuthGuard.tsx
+      PredictionForm.tsx
+      ResultCard.tsx
+      Navbar.tsx
+    utils/
+      supabaseClient.ts
+      config.ts
+      types.ts
+    .env.local.example
+    package.json
+    next.config.mjs
+    tailwind.config.ts
+  ml/
+    models/
+      best_model.pkl
+      scaler.pkl
+  supabase/
+    schema.sql
 ```
 
-## Setup Instructions
+## 2. Backend API
 
-### 1. Prerequisites
-- Node.js (v18+)
-- Python (v3.10+)
+### `POST /predict`
+- Requires `Authorization: Bearer <supabase_access_token>`
+- Loads `ml/models/best_model.pkl` and `ml/models/scaler.pkl`
+- Scales input then predicts class + probability
+- Saves prediction history to Supabase
 
-### 2. Environment Variables
-Create a `.env.local` inside `frontend/` and a `.env` in `backend/` with the following variables:
-```env
-# Frontend (.env.local)
-NEXT_PUBLIC_SUPABASE_URL=your_supabase_url
-NEXT_PUBLIC_SUPABASE_ANON_KEY=your_supabase_anon_key
-NEXT_PUBLIC_BACKEND_API_URL=http://localhost:8000
+### Request body
 
-# Backend (.env)
-SUPABASE_URL=your_supabase_url
-SUPABASE_KEY=your_supabase_anon_key
+```json
+{
+  "pregnancies": 2,
+  "glucose": 140,
+  "blood_pressure": 84,
+  "skin_thickness": 28,
+  "insulin": 120,
+  "BMI": 31.4,
+  "diabetes_pedigree": 0.62,
+  "age": 45
+}
 ```
 
-### 3. ML Model setup (if missing)
-Models are already included. However, you can retrain the model on the full real-world Pima Indians Diabetes database using:
+### Example cURL request
+
 ```bash
-cd ml
-pip install pandas scikit-learn
-python train_genuine_model.py
+curl -X POST "http://localhost:8000/predict" \
+  -H "Content-Type: application/json" \
+  -H "Authorization: Bearer <supabase_access_token>" \
+  -d '{"pregnancies":2,"glucose":140,"blood_pressure":84,"skin_thickness":28,"insulin":120,"BMI":31.4,"diabetes_pedigree":0.62,"age":45}'
 ```
 
-### 4. Running Backend
+### Response
+
+```json
+{
+  "prediction": 1,
+  "risk_probability": 0.7842
+}
+```
+
+## 3. Supabase Table
+
+Run SQL in [supabase/schema.sql](./supabase/schema.sql):
+- Table: `predictions`
+- Columns:
+  - `id`
+  - `user_id`
+  - `age`
+  - `glucose`
+  - `blood_pressure`
+  - `BMI`
+  - `prediction`
+  - `probability`
+  - `created_at`
+- Includes RLS policies for secure user access
+
+## 4. Local Setup
+
+## Prerequisites
+- Node.js 18+
+- Python 3.10+
+- Supabase project
+
+## Backend
+
 ```bash
 cd backend
+python -m venv .venv
+.venv\Scripts\activate
 pip install -r requirements.txt
+copy .env.example .env
+```
+
+Set backend `.env`:
+- `SUPABASE_URL`
+- `SUPABASE_KEY` (use service role key on backend)
+- `CORS_ORIGINS` (example: `http://localhost:3000`)
+
+Run backend:
+
+```bash
 uvicorn main:app --reload
 ```
-API runs on `http://localhost:8000`
 
-### 5. Running Frontend
+## Frontend
+
 ```bash
 cd frontend
+npm install
+copy .env.local.example .env.local
 npm run dev
 ```
-Frontend runs on `http://localhost:3000`
 
-## Deployment
-* **Frontend**: Push your code to GitHub and deploy the `/frontend` folder to Vercel. Add the `.env` variables to Vercel's settings.
-* **Backend**: Deploy the `/backend` and `/ml/models` folders to Render or Railway as a Web Service, configuring `uvicorn main:app --host 0.0.0.0 --port $PORT` as your start command.
-* **Database**: Already hosted on Supabase!
+Set frontend `.env.local`:
+- `NEXT_PUBLIC_SUPABASE_URL`
+- `NEXT_PUBLIC_SUPABASE_KEY` (anon key)
+- `NEXT_PUBLIC_BACKEND_API_URL` (local: `http://localhost:8000`)
+
+## 5. MVP Features Implemented
+
+- Email/password signup
+- Email/password login
+- Protected routes (`/predict`, `/dashboard`)
+- Health parameter form with all model-required features
+- AI prediction + risk probability
+- Prediction history stored in Supabase
+- Dashboard analytics:
+  - Total predictions
+  - High/low risk distribution
+  - Recent probability trend
+  - Recent predictions table
+
+## 6. Deployment
+
+## Frontend (Vercel)
+1. Push repository to GitHub.
+2. Import `frontend` folder in Vercel.
+3. Configure environment variables:
+   - `NEXT_PUBLIC_SUPABASE_URL`
+   - `NEXT_PUBLIC_SUPABASE_KEY`
+   - `NEXT_PUBLIC_BACKEND_API_URL` (deployed backend URL)
+4. Deploy.
+
+## Backend (Render or Railway)
+1. Deploy `backend` directory as a Python web service.
+2. Ensure `ml/models/best_model.pkl` and `ml/models/scaler.pkl` are present in deployment.
+3. Start command:
+   - `uvicorn main:app --host 0.0.0.0 --port $PORT`
+4. Configure env:
+   - `SUPABASE_URL`
+   - `SUPABASE_KEY` (service role key)
+   - `CORS_ORIGINS` (include Vercel domain)
+
+## Database/Auth (Supabase)
+1. Run `supabase/schema.sql`.
+2. Enable Email auth provider in Supabase Auth.
+3. Copy project URL, anon key, and service role key into envs.
+
+## 7. Notes
+
+- This MVP is intended as an assistive risk-screening tool, not a clinical diagnosis.
+- Always surface a medical disclaimer in product usage/policy docs.

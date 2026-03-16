@@ -1,188 +1,221 @@
 "use client";
-import React, { useEffect, useState } from 'react';
-import Navbar from '@/components/Navbar';
-import { supabase } from '@/utils/supabaseClient';
-import { useRouter } from 'next/navigation';
-import {
-  Chart as ChartJS,
-  CategoryScale,
-  LinearScale,
-  BarElement,
-  Title,
-  Tooltip,
-  Legend,
-  DoughnutController,
-  ArcElement
-} from 'chart.js';
-import { Doughnut, Bar } from 'react-chartjs-2';
 
-ChartJS.register(
-  CategoryScale,
-  LinearScale,
+import { useEffect, useMemo, useState } from "react";
+import Link from "next/link";
+
+import {
+  ArcElement,
   BarElement,
-  Title,
-  Tooltip,
+  CategoryScale,
+  Chart as ChartJS,
   Legend,
-  DoughnutController,
-  ArcElement
-);
+  LinearScale,
+  Tooltip,
+} from "chart.js";
+import { Bar, Doughnut } from "react-chartjs-2";
+
+import AuthGuard from "@/components/AuthGuard";
+import Navbar from "@/components/Navbar";
+import { isSupabaseConfigured, supabase } from "@/utils/supabaseClient";
+import { PredictionRecord } from "@/utils/types";
+
+ChartJS.register(ArcElement, BarElement, CategoryScale, Legend, LinearScale, Tooltip);
 
 export default function DashboardPage() {
-  const router = useRouter();
-  const [predictions, setPredictions] = useState<any[]>([]);
-  const [loading, setLoading] = useState(true);
+  const [predictions, setPredictions] = useState<PredictionRecord[]>([]);
+  const [isLoading, setIsLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
 
   useEffect(() => {
-    // Authenticaion check removed, immediately fetch predictions with a mock user
-    fetchPredictions('mock-user-id');
+    const fetchPredictions = async () => {
+      setIsLoading(true);
+      setError(null);
+
+      if (!isSupabaseConfigured) {
+        setError("Supabase is not configured. Set NEXT_PUBLIC_SUPABASE_URL and NEXT_PUBLIC_SUPABASE_KEY.");
+        setIsLoading(false);
+        return;
+      }
+
+      const { data: authData, error: authError } = await supabase.auth.getUser();
+      if (authError || !authData.user) {
+        setError("Please login again to load analytics.");
+        setIsLoading(false);
+        return;
+      }
+
+      const { data, error: fetchError } = await supabase
+        .from("predictions")
+        .select("*")
+        .eq("user_id", authData.user.id)
+        .order("created_at", { ascending: false });
+
+      if (fetchError) {
+        setError(fetchError.message);
+      } else {
+        setPredictions((data || []) as PredictionRecord[]);
+      }
+
+      setIsLoading(false);
+    };
+
+    fetchPredictions();
   }, []);
 
-  const fetchPredictions = async (userId: string) => {
-    // Attempting to fetch from actual DB table to show realistic dashboard
-    try {
-      const { data, error } = await supabase
-        .from('predictions')
-        .select('*')
-        // if user_id was strictly implemented: .eq('user_id', userId)
-        .order('created_at', { ascending: false })
-        .limit(20);
+  const stats = useMemo(() => {
+    const total = predictions.length;
+    const highRisk = predictions.filter((item) => item.prediction === 1).length;
+    const lowRisk = total - highRisk;
+    const averageRisk = total > 0 ? predictions.reduce((sum, item) => sum + item.probability, 0) / total : 0;
 
-      if (error) {
-        console.error("Error fetching predictions DB:", error.message);
-      } else if (data) {
-        setPredictions(data);
-      }
-    } catch (err) {
-      console.error(err);
-    } finally {
-      if (predictions.length === 0) {
-        // Mock data fallback if DB isn't properly deployed yet for MVP
-        setPredictions([
-          { id: 1, created_at: new Date().toISOString(), prediction: 1, probability: 0.82, age: 45, BMI: 28 },
-          { id: 2, created_at: new Date(Date.now() - 86400000).toISOString(), prediction: 0, probability: 0.15, age: 30, BMI: 22 },
-          { id: 3, created_at: new Date(Date.now() - 172800000).toISOString(), prediction: 1, probability: 0.65, age: 52, BMI: 31 },
-        ]);
-      }
-      setLoading(false);
-    }
-  };
+    return { averageRisk, highRisk, lowRisk, total };
+  }, [predictions]);
 
-  const highRiskCount = predictions.filter(p => p.prediction === 1).length;
-  const lowRiskCount = predictions.length - highRiskCount;
+  const doughnutData = useMemo(
+    () => ({
+      labels: ["High Risk", "Low Risk"],
+      datasets: [
+        {
+          data: [stats.highRisk, stats.lowRisk],
+          backgroundColor: ["#ef4444", "#10b981"],
+          borderWidth: 0,
+        },
+      ],
+    }),
+    [stats.highRisk, stats.lowRisk],
+  );
 
-  const doughnutData = {
-    labels: ['High Risk', 'Low Risk'],
-    datasets: [
-      {
-        data: [highRiskCount, lowRiskCount],
-        backgroundColor: ['rgba(239, 68, 68, 0.8)', 'rgba(34, 197, 94, 0.8)'],
-        borderColor: ['rgba(239, 68, 68, 1)', 'rgba(34, 197, 94, 1)'],
-        borderWidth: 1,
-      },
-    ],
-  };
+  const recentForChart = useMemo(() => [...predictions].slice(0, 7).reverse(), [predictions]);
 
-  const barData = {
-    labels: predictions.slice(0, 5).map(p => new Date(p.created_at).toLocaleDateString()),
-    datasets: [
-      {
-        label: 'Risk Probability (%)',
-        data: predictions.slice(0, 5).map(p => (p.probability * 100).toFixed(1)),
-        backgroundColor: 'rgba(59, 130, 246, 0.7)',
-        borderRadius: 6,
-      },
-    ],
-  };
+  const barData = useMemo(
+    () => ({
+      labels: recentForChart.map((item) => new Date(item.created_at).toLocaleDateString()),
+      datasets: [
+        {
+          label: "Risk probability (%)",
+          data: recentForChart.map((item) => Number((item.probability * 100).toFixed(2))),
+          backgroundColor: "#2563eb",
+          borderRadius: 8,
+        },
+      ],
+    }),
+    [recentForChart],
+  );
 
   return (
-    <div className="min-h-screen bg-gray-50 font-sans">
+    <div className="min-h-screen">
       <Navbar />
 
-      <main className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-10">
-        <h1 className="text-3xl font-bold text-gray-900 mb-8 tracking-tight">Your Health Analytics</h1>
+      <main className="mx-auto w-full max-w-7xl px-4 py-10 sm:px-6 lg:px-8">
+        <AuthGuard>
+          <h1 className="text-3xl font-extrabold tracking-tight text-slate-900">Health Analytics Dashboard</h1>
+          <p className="mt-2 text-sm text-slate-600">Track prediction volume, risk distribution, and your recent records.</p>
 
-        {loading ? (
-          <div className="flex justify-center py-20">
-            <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-600"></div>
-          </div>
-        ) : (
-          <>
-            <div className="grid grid-cols-1 md:grid-cols-3 gap-6 mb-8">
-              <div className="bg-white rounded-2xl p-6 shadow-sm border border-gray-100 flex flex-col justify-center items-center transform transition duration-300 hover:scale-[1.02] hover:shadow-md">
-                <h3 className="text-gray-500 text-sm font-medium uppercase tracking-wider mb-2">Total Assessments</h3>
-                <p className="text-4xl font-extrabold text-gray-800">{predictions.length}</p>
-              </div>
-              <div className="bg-white rounded-2xl p-6 shadow-sm border border-gray-100 flex flex-col justify-center items-center transform transition duration-300 hover:scale-[1.02] hover:shadow-md">
-                <h3 className="text-red-500 text-sm font-medium uppercase tracking-wider mb-2">High Risk Cases</h3>
-                <p className="text-4xl font-extrabold text-red-600">{highRiskCount}</p>
-              </div>
-              <div className="bg-white rounded-2xl p-6 shadow-sm border border-gray-100 flex flex-col justify-center items-center transform transition duration-300 hover:scale-[1.02] hover:shadow-md">
-                <h3 className="text-green-500 text-sm font-medium uppercase tracking-wider mb-2">Low Risk Cases</h3>
-                <p className="text-4xl font-extrabold text-green-600">{lowRiskCount}</p>
-              </div>
+          {error && <div className="mt-5 rounded-lg bg-red-50 px-4 py-3 text-sm text-red-700">{error}</div>}
+
+          {isLoading ? (
+            <div className="mt-14 flex justify-center">
+              <div className="h-12 w-12 animate-spin rounded-full border-2 border-brand-200 border-t-brand-600" />
             </div>
-
-            <div className="grid grid-cols-1 lg:grid-cols-2 gap-8 mb-8">
-              <div className="bg-white rounded-2xl p-8 shadow-sm border border-gray-100">
-                <h3 className="text-lg font-bold text-gray-800 mb-6">Risk Distribution Overview</h3>
-                <div className="flex justify-center h-64">
-                  {predictions.length > 0 ? <Doughnut data={doughnutData} options={{ maintainAspectRatio: false }} /> : <p className="text-gray-400 my-auto">No data to display.</p>}
+          ) : (
+            <>
+              <section className="mt-7 grid grid-cols-1 gap-5 md:grid-cols-3">
+                <div className="surface-card p-6">
+                  <p className="text-xs font-semibold uppercase tracking-[0.16em] text-slate-500">Total Predictions</p>
+                  <p className="mt-3 text-4xl font-extrabold text-slate-900">{stats.total}</p>
                 </div>
-              </div>
-              <div className="bg-white rounded-2xl p-8 shadow-sm border border-gray-100">
-                <h3 className="text-lg font-bold text-gray-800 mb-6">Recent Probability Trend</h3>
-                <div className="flex justify-center h-64">
-                  {predictions.length > 0 ? <Bar data={barData} options={{ maintainAspectRatio: false, scales: { y: { beginAtZero: true, max: 100 } } }} /> : <p className="text-gray-400 my-auto">No data to display.</p>}
+                <div className="surface-card p-6">
+                  <p className="text-xs font-semibold uppercase tracking-[0.16em] text-slate-500">High Risk Cases</p>
+                  <p className="mt-3 text-4xl font-extrabold text-red-600">{stats.highRisk}</p>
                 </div>
-              </div>
-            </div>
+                <div className="surface-card p-6">
+                  <p className="text-xs font-semibold uppercase tracking-[0.16em] text-slate-500">Average Risk</p>
+                  <p className="mt-3 text-4xl font-extrabold text-brand-700">{(stats.averageRisk * 100).toFixed(1)}%</p>
+                </div>
+              </section>
 
-            <div className="bg-white rounded-2xl shadow-sm border border-gray-100 overflow-hidden">
-              <div className="px-8 py-5 border-b border-gray-100">
-                <h3 className="text-lg font-bold text-gray-800">Recent Assessment History</h3>
-              </div>
-              <div className="overflow-x-auto">
-                <table className="w-full text-left border-collapse">
-                  <thead>
-                    <tr className="bg-gray-50/50">
-                      <th className="px-8 py-4 text-xs font-semibold text-gray-500 uppercase tracking-wider border-b border-gray-100">Date</th>
-                      <th className="px-8 py-4 text-xs font-semibold text-gray-500 uppercase tracking-wider border-b border-gray-100">Age / BMI</th>
-                      <th className="px-8 py-4 text-xs font-semibold text-gray-500 uppercase tracking-wider border-b border-gray-100 mt-2">Probability</th>
-                      <th className="px-8 py-4 text-xs font-semibold text-gray-500 uppercase tracking-wider border-b border-gray-100">Result</th>
-                    </tr>
-                  </thead>
-                  <tbody className="divide-y divide-gray-50">
-                    {predictions.map((p, idx) => (
-                      <tr key={idx} className="hover:bg-gray-50/50 transition-colors">
-                        <td className="px-8 py-4 whitespace-nowrap text-sm text-gray-600 font-medium">
-                          {new Date(p.created_at).toLocaleDateString()}
-                        </td>
-                        <td className="px-8 py-4 whitespace-nowrap text-sm text-gray-500">
-                          {p.age} yrs / {p.BMI}
-                        </td>
-                        <td className="px-8 py-4 whitespace-nowrap text-sm font-semibold text-gray-700">
-                          {(p.probability * 100).toFixed(1)}%
-                        </td>
-                        <td className="px-8 py-4 whitespace-nowrap">
-                          <span className={`px-3 py-1 inline-flex text-xs leading-5 font-bold rounded-full ${p.prediction === 1 ? 'bg-red-100 text-red-800' : 'bg-green-100 text-green-800'
-                            }`}>
-                            {p.prediction === 1 ? 'High Risk' : 'Low Risk'}
-                          </span>
-                        </td>
-                      </tr>
-                    ))}
-                    {predictions.length === 0 && (
-                      <tr>
-                        <td colSpan={4} className="px-8 py-8 text-center text-gray-500">No recent predictions found. Go to <a href="/predict" className="text-blue-600 font-semibold hover:underline">Predict Risk</a> to begin.</td>
-                      </tr>
+              <section className="mt-7 grid grid-cols-1 gap-6 lg:grid-cols-2">
+                <div className="surface-card p-6">
+                  <h2 className="text-lg font-bold text-slate-900">Risk Distribution</h2>
+                  <div className="mt-4 h-72">
+                    {stats.total > 0 ? <Doughnut data={doughnutData} options={{ maintainAspectRatio: false }} /> : <EmptyState />}
+                  </div>
+                </div>
+
+                <div className="surface-card p-6">
+                  <h2 className="text-lg font-bold text-slate-900">Recent Risk Probability</h2>
+                  <div className="mt-4 h-72">
+                    {stats.total > 0 ? (
+                      <Bar
+                        data={barData}
+                        options={{
+                          maintainAspectRatio: false,
+                          scales: { y: { beginAtZero: true, max: 100 } },
+                        }}
+                      />
+                    ) : (
+                      <EmptyState />
                     )}
-                  </tbody>
-                </table>
-              </div>
-            </div>
-          </>
-        )}
+                  </div>
+                </div>
+              </section>
+
+              <section className="surface-card mt-7 overflow-hidden">
+                <div className="border-b border-slate-200 px-6 py-4">
+                  <h2 className="text-lg font-bold text-slate-900">Recent Predictions</h2>
+                </div>
+                <div className="overflow-x-auto">
+                  <table className="w-full min-w-[700px] border-collapse text-left">
+                    <thead className="bg-slate-50">
+                      <tr>
+                        <th className="px-6 py-3 text-xs font-semibold uppercase tracking-wide text-slate-500">Date</th>
+                        <th className="px-6 py-3 text-xs font-semibold uppercase tracking-wide text-slate-500">Age</th>
+                        <th className="px-6 py-3 text-xs font-semibold uppercase tracking-wide text-slate-500">Glucose</th>
+                        <th className="px-6 py-3 text-xs font-semibold uppercase tracking-wide text-slate-500">BMI</th>
+                        <th className="px-6 py-3 text-xs font-semibold uppercase tracking-wide text-slate-500">Probability</th>
+                        <th className="px-6 py-3 text-xs font-semibold uppercase tracking-wide text-slate-500">Result</th>
+                      </tr>
+                    </thead>
+                    <tbody>
+                      {predictions.slice(0, 15).map((item) => (
+                        <tr key={item.id} className="border-t border-slate-100">
+                          <td className="px-6 py-3 text-sm text-slate-600">{new Date(item.created_at).toLocaleString()}</td>
+                          <td className="px-6 py-3 text-sm text-slate-700">{item.age}</td>
+                          <td className="px-6 py-3 text-sm text-slate-700">{item.glucose}</td>
+                          <td className="px-6 py-3 text-sm text-slate-700">{item.BMI}</td>
+                          <td className="px-6 py-3 text-sm font-semibold text-slate-800">{(item.probability * 100).toFixed(1)}%</td>
+                          <td className="px-6 py-3">
+                            <span
+                              className={`rounded-full px-3 py-1 text-xs font-bold ${
+                                item.prediction === 1 ? "bg-red-100 text-red-700" : "bg-emerald-100 text-emerald-700"
+                              }`}
+                            >
+                              {item.prediction === 1 ? "High Risk" : "Low Risk"}
+                            </span>
+                          </td>
+                        </tr>
+                      ))}
+                    </tbody>
+                  </table>
+                  {predictions.length === 0 && (
+                    <div className="px-6 py-10 text-sm text-slate-500">
+                      No predictions yet.{" "}
+                      <Link href="/predict" className="font-semibold text-brand-700 hover:underline">
+                        Run your first prediction
+                      </Link>
+                      .
+                    </div>
+                  )}
+                </div>
+              </section>
+            </>
+          )}
+        </AuthGuard>
       </main>
     </div>
   );
+}
+
+function EmptyState() {
+  return <div className="grid h-full place-items-center text-sm text-slate-400">No chart data available yet.</div>;
 }
