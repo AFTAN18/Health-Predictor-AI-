@@ -44,6 +44,7 @@ early-disease-prediction-system/
       naive_bayes.pkl
       decision_tree.pkl
       scaler.pkl
+      training_metrics.json
   supabase/
     schema.sql
 ```
@@ -69,6 +70,7 @@ early-disease-prediction-system/
   - Risk distribution
   - Health score trend
   - Future disease risk trend
+- Production quality gate for training (`accuracy` + `ROC-AUC` thresholds)
 
 ## Prediction API
 
@@ -238,3 +240,32 @@ NEXT_PUBLIC_BACKEND_API_URL=http://localhost:8000
 
 ## Medical Disclaimer
 This system provides AI-assisted risk screening only. It is not a diagnostic device and does not replace clinical judgment.
+
+## Model Training and Quality Gate
+Training script:
+`ml/train_genuine_model.py`
+
+Default behavior:
+- Trains Random Forest, SVM, Naive Bayes, and Decision Tree
+- Runs holdout + 5-fold cross-validation metrics
+- Selects best model by holdout ROC-AUC/F1/accuracy
+- Enforces quality gate defaults:
+  - `min_accuracy = 0.90`
+  - `min_roc_auc = 0.90`
+- If gate fails, `best_model.pkl` and `scaler.pkl` are not overwritten
+
+Examples:
+```bash
+# strict gate (recommended for production promotion)
+py ml/train_genuine_model.py
+
+# custom CSV dataset with required feature columns + target column
+py ml/train_genuine_model.py --dataset-csv "C:\path\dataset.csv" --target-column outcome
+
+# allow saving below threshold (for research/non-production only)
+py ml/train_genuine_model.py --allow-below-threshold
+```
+
+Important:
+- A universal 90% accuracy guarantee across all large external datasets is not scientifically reliable due to dataset shift and label/feature differences.
+- Use `training_metrics.json` and your own validation dataset before production decisions.
