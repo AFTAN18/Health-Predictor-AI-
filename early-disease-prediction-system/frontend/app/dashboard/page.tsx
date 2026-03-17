@@ -23,9 +23,16 @@ import { PredictionRecord } from "@/utils/types";
 
 ChartJS.register(ArcElement, BarElement, CategoryScale, LineElement, PointElement, Legend, LinearScale, Tooltip);
 
-function getRiskBucket(probability: number): "Low" | "Medium" | "High" {
-  if (probability < 0.35) return "Low";
-  if (probability < 0.65) return "Medium";
+function normalizeProbability(value: number): number {
+  if (!Number.isFinite(value)) return 0;
+  if (value < 0) return 0;
+  if (value > 1) return Math.min(value / 100, 1);
+  return value;
+}
+
+function getRiskBucketFromScore(score: number): "Low" | "Medium" | "High" {
+  if (score < 50) return "Low";
+  if (score <= 70) return "Medium";
   return "High";
 }
 
@@ -74,11 +81,13 @@ export default function DashboardPage() {
     const averageRiskScore =
       total > 0 ? predictions.reduce((sum, item) => sum + calculateRiskScore(item), 0) / total : 0;
     const averageFutureRisk =
-      total > 0 ? predictions.reduce((sum, item) => sum + Number(item.future_probability), 0) / total : 0;
+      total > 0
+        ? predictions.reduce((sum, item) => sum + normalizeProbability(Number(item.future_probability)), 0) / total
+        : 0;
 
     const distribution = predictions.reduce(
       (acc, item) => {
-        const bucket = getRiskBucket(Number(item.probability));
+        const bucket = getRiskBucketFromScore(calculateRiskScore(item));
         acc[bucket] += 1;
         return acc;
       },
@@ -125,7 +134,7 @@ export default function DashboardPage() {
       datasets: [
         {
           label: "Future Disease Risk (%)",
-          data: recentForChart.map((item) => Number((Number(item.future_probability) * 100).toFixed(2))),
+          data: recentForChart.map((item) => Number((normalizeProbability(Number(item.future_probability)) * 100).toFixed(2))),
           borderColor: "#1d4ed8",
           backgroundColor: "rgba(37, 99, 235, 0.15)",
           tension: 0.35,
@@ -241,9 +250,11 @@ export default function DashboardPage() {
                         <td className="px-6 py-3 text-sm text-slate-700">{item.glucose}</td>
                         <td className="px-6 py-3 text-sm text-slate-700">{item.cholesterol}</td>
                         <td className="px-6 py-3 text-sm text-slate-700">{item.BMI}</td>
-                        <td className="px-6 py-3 text-sm font-semibold text-slate-800">{(Number(item.probability) * 100).toFixed(1)}%</td>
+                        <td className="px-6 py-3 text-sm font-semibold text-slate-800">
+                          {(normalizeProbability(Number(item.probability)) * 100).toFixed(1)}%
+                        </td>
                         <td className="px-6 py-3 text-sm font-semibold text-indigo-700">
-                          {(Number(item.future_probability) * 100).toFixed(1)}%
+                          {(normalizeProbability(Number(item.future_probability)) * 100).toFixed(1)}%
                         </td>
                         <td className="px-6 py-3 text-sm text-slate-700">{calculateRiskScore(item).toFixed(1)}</td>
                       </tr>
