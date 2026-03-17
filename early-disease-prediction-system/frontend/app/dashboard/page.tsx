@@ -46,6 +46,15 @@ function calculateRiskScore(record: PredictionRecord): number {
   );
 }
 
+function formatChartTimestamp(timestamp: string): string {
+  return new Date(timestamp).toLocaleString([], {
+    month: "numeric",
+    day: "numeric",
+    hour: "2-digit",
+    minute: "2-digit",
+  });
+}
+
 export default function DashboardPage() {
   const [predictions, setPredictions] = useState<PredictionRecord[]>([]);
   const [isLoading, setIsLoading] = useState(true);
@@ -115,7 +124,7 @@ export default function DashboardPage() {
 
   const barData = useMemo(
     () => ({
-      labels: recentForChart.map((item) => new Date(item.created_at).toLocaleDateString()),
+      labels: recentForChart.map((item) => formatChartTimestamp(item.created_at)),
       datasets: [
         {
           label: "Health Risk Score",
@@ -128,21 +137,53 @@ export default function DashboardPage() {
     [recentForChart],
   );
 
+  const futureTrendValues = useMemo(
+    () =>
+      recentForChart.map((item) => Number((normalizeProbability(Number(item.future_probability)) * 100).toFixed(2))),
+    [recentForChart],
+  );
+
+  const futureTrendAxis = useMemo(() => {
+    if (futureTrendValues.length === 0) return { min: 0, max: 100 };
+
+    const minValue = Math.min(...futureTrendValues);
+    const maxValue = Math.max(...futureTrendValues);
+
+    if (minValue === maxValue) {
+      const padding = 10;
+      return {
+        min: Math.max(0, minValue - padding),
+        max: Math.min(105, maxValue + padding),
+      };
+    }
+
+    const range = maxValue - minValue;
+    const padding = Math.max(4, range * 0.2);
+
+    return {
+      min: Math.max(0, minValue - padding),
+      max: Math.min(105, maxValue + padding),
+    };
+  }, [futureTrendValues]);
+
   const futureLineData = useMemo(
     () => ({
-      labels: recentForChart.map((item) => new Date(item.created_at).toLocaleDateString()),
+      labels: recentForChart.map((item) => formatChartTimestamp(item.created_at)),
       datasets: [
         {
           label: "Future Disease Risk (%)",
-          data: recentForChart.map((item) => Number((normalizeProbability(Number(item.future_probability)) * 100).toFixed(2))),
+          data: futureTrendValues,
           borderColor: "#1d4ed8",
           backgroundColor: "rgba(37, 99, 235, 0.15)",
+          borderWidth: 3,
+          pointRadius: 4,
+          pointHoverRadius: 6,
           tension: 0.35,
           fill: true,
         },
       ],
     }),
-    [recentForChart],
+    [futureTrendValues, recentForChart],
   );
 
   return (
@@ -212,8 +253,11 @@ export default function DashboardPage() {
                       maintainAspectRatio: false,
                       scales: {
                         y: {
-                          beginAtZero: true,
-                          max: 100,
+                          min: Number(futureTrendAxis.min.toFixed(2)),
+                          max: Number(futureTrendAxis.max.toFixed(2)),
+                          ticks: {
+                            callback: (value) => `${value}%`,
+                          },
                         },
                       },
                     }}
